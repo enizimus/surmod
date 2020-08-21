@@ -11,7 +11,7 @@ def plot_discrepancies(y: np.ndarray, y_hat: np.ndarray):
     ax.plot(x, y[I], c="tab:blue", ls="-", marker="o", label="y")
     ax.plot(x, y_hat[I], c="tab:orange", ls="-", marker="s", label="y_hat")
     ax.grid()
-    ax.set_title("RMSE = {}".format(np.mean((y - y_hat) ** 2)))
+    ax.set_title("RMSE = {}".format(np.sqrt(np.mean((y - y_hat) ** 2))))
     ax.set_xlabel("Samples")
     ax.set_ylabel("Objective function value")
     ax.set_xticks(x)
@@ -96,4 +96,38 @@ def variable_screeing_scatter_plot(
             dpi=300,
             format="pdf",
         )
+
+
+def sorted_variables_bar_plot(ax: object, F_mean: np.ndarray, F_std: np.ndarray, var_names: list, titl: str, verbose=False):
+    """[summary]
+
+    Args:
+        ax (object): matplotlib axis object
+        F_mean (np.ndarray): mean values of elem. effect matrix F
+        F_std (np.ndarray): std values of elem. effect matrix F
+        var_names (list): list of variable names
+        titl (str): title string
+        verbose (bool, optional): Print variable ordering and values. Defaults to False.
+    """    
+    
+    dists = np.sqrt(F_mean**2+F_std**2)
+    sort_ind = np.argsort(dists)
+    
+    sort_ind = np.flipud(sort_ind)
+    names_sorted = [var_names[ind] for ind in sort_ind]
+    
+    if verbose:
+        print(names_sorted)
+        #print(dists[sort_ind])
+    
+    x = np.arange(len(var_names))
+    
+    #fig, ax = plt.subplots(figsize=(7,3))
+    
+    ax.bar(x, dists[sort_ind])
+    ax.set_xticks(x)
+    ax.set_xticklabels(names_sorted)
+    #ax.set_xlabel("Variables")
+    ax.set_ylabel("General influence")
+    ax.set_title(titl)
     

@@ -3,6 +3,7 @@ from numpy.linalg import solve
 import matplotlib.pyplot as plt
 from ypstruct import structure
 
+from . import genetic_algorithm
 
 class RBF:
     """ Radial Basis Functions (RBF) Class : 
