@@ -5,6 +5,7 @@ from ypstruct import structure
 
 from . import genetic_algorithm
 
+
 class RBF:
     """ Radial Basis Functions (RBF) Class : 
      - Objects of this class implement a *fit()* function for fitting 
@@ -53,6 +54,32 @@ class RBF:
 
     def set_params(self, sigma):
         self.sigma = sigma
+
+    def save(self, path: str = "./rbf_model.npy"):
+
+        model = {
+            "sigma": self.sigma,
+            "sigma_int": self.sigma_int,
+            "basis": self.basis,
+            "n_sigma": self.n_sigma,
+            "w": self.w,
+            "X": self.X,
+        }
+
+        np.save(path, model, allow_pickle=True)
+
+    def load(self, path: str = "./rbf_model.npy"):
+
+        model = np.load(path, allow_pickle=True)[()]
+
+        self.X = model["X"]
+        self.w = model["w"]
+        self.sigma = model["sigma"]
+        self.sigma_int = model["sigma_int"]
+        self.basis = model["basis"]
+        self.n_sigma = model["n_sigma"]
+        self.sigma_arr = np.logspace(sigma_int[0], sigma_int[1], n_sigma)
+        self.basis_fun, self.basis_num = self.__get_basis_function(basis)
 
     ## -------------------------------------------
     ##* Dev level functions (Private):
@@ -165,8 +192,8 @@ class Kriging:
 
     def predict(self, X):
 
-        self.theta = 10 ** self.parameters[:self.n_feat]
-        self.p = self.parameters[self.n_feat:]
+        self.theta = 10 ** self.parameters[: self.n_feat]
+        self.p = self.parameters[self.n_feat :]
 
         I = np.ones(self.X.shape[0])
 
@@ -177,6 +204,28 @@ class Kriging:
         y_hat = mu + np.dot(Psi, solve(self.Psi, self.y - I * mu))
 
         return y_hat
+
+    def save(self, path: str = "./kriging_model.npy"):
+
+        model = {
+            "parameters": self.parameters,
+            "X": self.X,
+            "n_feat": self.n_feat,
+            "Psi": self.Psi,
+            "y": self.y,
+        }
+
+        np.save(path, model, allow_pickle=True)
+
+    def load(self, path: str = "./kriging_model.npy"):
+
+        model = np.load(path, allow_pickle=True)[()]
+
+        self.parameters = model["parameters"]
+        self.X = model["X"]
+        self.n_feat = model["n_feat"]
+        self.Psi = model["Psi"]
+        self.y = model["y"]
 
     ## -------------------------------------------
     ##* Dev level functions (Private):
@@ -223,9 +272,9 @@ class Kriging:
         return ln_like
 
     def __parameters_objective(self, parameters):
-        
-        self.theta = 10 ** parameters[:self.n_feat]
-        self.p = parameters[self.n_feat:]
+
+        self.theta = 10 ** parameters[: self.n_feat]
+        self.p = parameters[self.n_feat :]
 
         Psi = self.__construct_corr_mat()
         ln_like = self.__estimate_sig_mu_ln(Psi)
