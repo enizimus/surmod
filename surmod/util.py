@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def shuffle_data(
     X: np.ndarray, y: np.ndarray, seed: int = None
 ) -> (np.ndarray, np.ndarray):

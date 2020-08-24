@@ -25,6 +25,7 @@ def rlh(n: int, k: int, edges: int = 0):
     return X
 
 
+@profile
 def compute_dists(X: np.ndarray, p: int = 1) -> (np.ndarray, np.ndarray):
     """ Computes distances between all pairs of points, keeps the unique 
     ones and computes how many each of them repeat.
@@ -45,11 +46,12 @@ def compute_dists(X: np.ndarray, p: int = 1) -> (np.ndarray, np.ndarray):
     J = np.zeros_like(unique_dist)
 
     for i, d in enumerate(unique_dist):
-        J[i] = np.sum(dist == d)
+        J[i] = np.count_nonzero(dist == d)
 
     return J, unique_dist
 
 
+# @profile
 def morris_mitchel_criterion(X1: np.ndarray, X2: np.ndarray, p: int = 1) -> (int):
     """Implements the Morris Mitchel criterion based on the distances between 
     the points in the sampling plans.
@@ -104,6 +106,7 @@ def morris_mitchel_criterion(X1: np.ndarray, X2: np.ndarray, p: int = 1) -> (int
     return cond
 
 
+# @profile
 def morris_mitchel_phi_criterion(X: np.ndarray, q: int = 2, p: int = 1):
     """Computes the Morris Mitchel Phi criterion where the space filling 
     property of the latin hypercube is expressed through the Parameter 
@@ -155,6 +158,7 @@ def sort_morris_mitchel(X3D: np.ndarray, p: int = 1) -> (np.ndarray):
     return indices
 
 
+# @profile
 def sort_morris_mitchel_phi(X3D: np.ndarray, p: int = 1, q: int = 2):
     """Sorts the 3-dimensional array of sampling plans according
     to the Morris Mitchel Phi criterion.
@@ -202,6 +206,7 @@ def perturb_plan(X: np.ndarray, num_perturb: int = 1) -> (np.ndarray):
     return X
 
 
+@profile
 def evolve_lh(X: np.ndarray, n_children: int, n_iter: int, q: int = 2) -> (np.ndarray):
     """ Evolutionary process optimization of input sampling plan.
 
@@ -247,6 +252,7 @@ def evolve_lh(X: np.ndarray, n_children: int, n_iter: int, q: int = 2) -> (np.nd
     return X_best
 
 
+@profile
 def get_evolved_lh(
     n: int, k: int, n_children: int = 10, n_iter: int = 10, p: int = 1
 ) -> (np.ndarray):

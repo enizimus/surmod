@@ -20,10 +20,13 @@ def plot_discrepancies(y: np.ndarray, y_hat: np.ndarray):
 
 
 def variable_screeing_bar_plot(
-    F_mean: np.ndarray, F_std: np.ndarray, var: list, save_fig: bool = False, 
-    path: str="variable_screening_bar.pdf"
+    F_mean: np.ndarray,
+    F_std: np.ndarray,
+    var: list,
+    save_fig: bool = False,
+    path: str = "variable_screening_bar.pdf",
 ):
-    
+
     """Plots the mean and std of the input variables previously computed.
 
     Arguments:
@@ -37,37 +40,38 @@ def variable_screeing_bar_plot(
 
     N = len(F_mean)
 
-    score = F_mean**2 + F_std**2
+    score = F_mean ** 2 + F_std ** 2
     I = np.flipud(np.argsort(score))
-    
+
     F_mean = np.abs(F_mean[I])
     F_std = np.abs(F_std[I])
-    
-    ind = np.arange(N)    # the x locations for the groups
-    width = 0.65       # the width of the bars: can also be len(x) sequence
-    
-    p1 = plt.bar(ind, F_mean/F_mean.mean(), width)
-    p2 = plt.bar(ind, F_std/F_std.mean(), width, bottom=F_mean/F_mean.mean())
-    
+
+    ind = np.arange(N)  # the x locations for the groups
+    width = 0.65  # the width of the bars: can also be len(x) sequence
+
+    p1 = plt.bar(ind, F_mean / F_mean.mean(), width)
+    p2 = plt.bar(ind, F_std / F_std.mean(), width, bottom=F_mean / F_mean.mean())
+
     plt.ylabel("Scaled mean and std by their means")
     plt.xlabel("Variables")
     plt.title("Variable screening results")
     plt.xticks(ind, var)
-    plt.legend((p1[0], p2[0]), ('Mean', 'Std'))
-    
+    plt.legend((p1[0], p2[0]), ("Mean", "Std"))
+
     plt.show()
 
     if save_fig:
         plt.savefig(
-            path,
-            dpi=300,
-            format="pdf",
+            path, dpi=300, format="pdf",
         )
 
 
 def variable_screeing_scatter_plot(
-    F_mean: np.ndarray, F_std: np.ndarray, var: list, save_fig: bool = False, 
-    path: str="variable_screening_scatter.pdf"
+    F_mean: np.ndarray,
+    F_std: np.ndarray,
+    var: list,
+    save_fig: bool = False,
+    path: str = "variable_screening_scatter.pdf",
 ):
 
     """Plots the mean and std of the input variables previously computed.
@@ -92,13 +96,18 @@ def variable_screeing_scatter_plot(
     ax.set_ylabel("Standard deviation")
     if save_fig:
         plt.savefig(
-            path,
-            dpi=300,
-            format="pdf",
+            path, dpi=300, format="pdf",
         )
 
 
-def sorted_variables_bar_plot(ax: object, F_mean: np.ndarray, F_std: np.ndarray, var_names: list, titl: str, verbose=False):
+def sorted_variables_bar_plot(
+    ax: object,
+    F_mean: np.ndarray,
+    F_std: np.ndarray,
+    var_names: list,
+    titl: str,
+    verbose=False,
+):
     """[summary]
 
     Args:
@@ -108,26 +117,25 @@ def sorted_variables_bar_plot(ax: object, F_mean: np.ndarray, F_std: np.ndarray,
         var_names (list): list of variable names
         titl (str): title string
         verbose (bool, optional): Print variable ordering and values. Defaults to False.
-    """    
-    
-    dists = np.sqrt(F_mean**2+F_std**2)
+    """
+
+    dists = np.sqrt(F_mean ** 2 + F_std ** 2)
     sort_ind = np.argsort(dists)
-    
+
     sort_ind = np.flipud(sort_ind)
     names_sorted = [var_names[ind] for ind in sort_ind]
-    
+
     if verbose:
         print(names_sorted)
-        #print(dists[sort_ind])
-    
+        # print(dists[sort_ind])
+
     x = np.arange(len(var_names))
-    
-    #fig, ax = plt.subplots(figsize=(7,3))
-    
+
+    # fig, ax = plt.subplots(figsize=(7,3))
+
     ax.bar(x, dists[sort_ind])
     ax.set_xticks(x)
     ax.set_xticklabels(names_sorted)
-    #ax.set_xlabel("Variables")
+    # ax.set_xlabel("Variables")
     ax.set_ylabel("General influence")
     ax.set_title(titl)
-    

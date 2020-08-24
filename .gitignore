@@ -1,4 +1,5 @@
 surmod/__pycache__/
 vscode/
+.vscode/
 dist/
 MANIFEST
