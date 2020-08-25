@@ -70,6 +70,9 @@ class RBF:
 
     def load(self, path: str = "./rbf_model.npy"):
 
+        if path[-4:] != ".npy":
+            path += ".npy"
+
         model = np.load(path, allow_pickle=True)[()]
 
         self.X = model["X"]
@@ -78,8 +81,10 @@ class RBF:
         self.sigma_int = model["sigma_int"]
         self.basis = model["basis"]
         self.n_sigma = model["n_sigma"]
-        self.sigma_arr = np.logspace(sigma_int[0], sigma_int[1], n_sigma)
-        self.basis_fun, self.basis_num = self.__get_basis_function(basis)
+        self.sigma_arr = np.logspace(self.sigma_int[0], self.sigma_int[1], n_sigma)
+        self.basis_fun, self.basis_num = self.__get_basis_function(self.basis)
+
+        print("Loaded parameters from saved model :\n {}".format(path))
 
     ## -------------------------------------------
     ##* Dev level functions (Private):
@@ -219,6 +224,9 @@ class Kriging:
 
     def load(self, path: str = "./kriging_model.npy"):
 
+        if path[-4:] != ".npy":
+            path += ".npy"
+
         model = np.load(path, allow_pickle=True)[()]
 
         self.parameters = model["parameters"]
@@ -226,6 +234,8 @@ class Kriging:
         self.n_feat = model["n_feat"]
         self.Psi = model["Psi"]
         self.y = model["y"]
+
+        print("Loaded parameters from saved model :\n {}".format(path))
 
     ## -------------------------------------------
     ##* Dev level functions (Private):
