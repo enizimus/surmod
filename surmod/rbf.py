@@ -81,7 +81,7 @@ class RBF:
         self.sigma_int = model["sigma_int"]
         self.basis = model["basis"]
         self.n_sigma = model["n_sigma"]
-        self.sigma_arr = np.logspace(self.sigma_int[0], self.sigma_int[1], n_sigma)
+        self.sigma_arr = np.logspace(self.sigma_int[0], self.sigma_int[1], self.n_sigma)
         self.basis_fun, self.basis_num = self.__get_basis_function(self.basis)
 
         print("Loaded parameters from saved model :\n {}".format(path))
@@ -218,6 +218,7 @@ class Kriging:
             "n_feat": self.n_feat,
             "Psi": self.Psi,
             "y": self.y,
+            "optim": self.optim
         }
 
         np.save(path, model, allow_pickle=True)
@@ -234,6 +235,7 @@ class Kriging:
         self.n_feat = model["n_feat"]
         self.Psi = model["Psi"]
         self.y = model["y"]
+        self.optim = model["optim"]
 
         print("Loaded parameters from saved model :\n {}".format(path))
 
