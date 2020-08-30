@@ -62,7 +62,9 @@ def variable_screeing_bar_plot(
 
     if save_fig:
         plt.savefig(
-            path, dpi=300, format="pdf",
+            path,
+            dpi=300,
+            format="pdf",
         )
 
 
@@ -96,7 +98,9 @@ def variable_screeing_scatter_plot(
     ax.set_ylabel("Standard deviation")
     if save_fig:
         plt.savefig(
-            path, dpi=300, format="pdf",
+            path,
+            dpi=300,
+            format="pdf",
         )
 
 

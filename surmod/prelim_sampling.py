@@ -82,7 +82,7 @@ def calc_elem_effects(
     objectives: np.ndarray, P: np.ndarray, k: int, r: int
 ) -> (np.ndarray, np.ndarray):
     """Generates a sampling plan and scales it with the ranges
-    of the individual variables, then computes the elementary 
+    of the individual variables, then computes the elementary
     effects Matrix F and the mean and standard deviation of these
     values for each design variable.
 

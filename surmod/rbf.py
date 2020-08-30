@@ -7,10 +7,10 @@ from . import genetic_algorithm
 
 
 class RBF:
-    """ Radial Basis Functions (RBF) Class : 
-     - Objects of this class implement a *fit()* function for fitting 
-     the RBF model to the data and the *predict()* function for running 
-     the predictions of the model on the input data. 
+    """Radial Basis Functions (RBF) Class :
+    - Objects of this class implement a *fit()* function for fitting
+    the RBF model to the data and the *predict()* function for running
+    the predictions of the model on the input data.
     """
 
     def __init__(
@@ -173,7 +173,10 @@ class RBF:
 
 class Kriging:
     def __init__(
-        self: object, optim, p: float = 2, verbose: bool = False,
+        self: object,
+        optim: object = None,
+        p: float = 2,
+        verbose: bool = False,
     ):
         self.eps = 2.22e-16
         self.verbose = verbose
@@ -212,13 +215,24 @@ class Kriging:
 
     def save(self, path: str = "./kriging_model.npy"):
 
+        optim = {
+            "var_min": self.optim.var_min,
+            "var_max": self.optim.var_max,
+            "num_iter": self.optim.num_iter,
+            "num_pop": self.optim.num_pop,
+            "mu": self.optim.mu,
+            "sigma": self.optim.sigma,
+            "child_factor": self.optim.child_factor,
+            "gamma": self.optim.gamma,
+        }
+
         model = {
             "parameters": self.parameters,
             "X": self.X,
             "n_feat": self.n_feat,
             "Psi": self.Psi,
             "y": self.y,
-            "optim": self.optim
+            "optim": optim,
         }
 
         np.save(path, model, allow_pickle=True)
@@ -229,13 +243,25 @@ class Kriging:
             path += ".npy"
 
         model = np.load(path, allow_pickle=True)[()]
+        optim_dict = model["optim"]
+
+        optim = structure(
+            var_min=optim_dict["var_min"],
+            var_max=optim_dict["var_max"],
+            num_iter=optim_dict["num_iter"],
+            num_pop=optim_dict["num_pop"],
+            mu=optim_dict["mu"],
+            sigma=optim_dict["sigma"],
+            child_factor=optim_dict["child_factor"],
+            gamma=optim_dict["gamma"],
+        )
 
         self.parameters = model["parameters"]
         self.X = model["X"]
         self.n_feat = model["n_feat"]
         self.Psi = model["Psi"]
         self.y = model["y"]
-        self.optim = model["optim"]
+        self.optim = optim
 
         print("Loaded parameters from saved model :\n {}".format(path))
 

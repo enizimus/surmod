@@ -4,7 +4,7 @@ import numpy as np
 def shuffle_data(
     X: np.ndarray, y: np.ndarray, seed: int = None
 ) -> (np.ndarray, np.ndarray):
-    """ Shuffles the input data and returns it.
+    """Shuffles the input data and returns it.
 
     Args:
         X (np.ndarray): Input dataset nondependant variables.
@@ -31,8 +31,8 @@ def shuffle_data(
 def train_test_split(
     X: np.ndarray, y: np.ndarray, p: float = 0.1, seed=None
 ) -> (np.ndarray, np.ndarray, np.ndarray, np.ndarray):
-    """ Splits the input data into a training and test set according 
-    to percentage given by p (p gives the amount of test data). 
+    """Splits the input data into a training and test set according
+    to percentage given by p (p gives the amount of test data).
 
     Args:
         X (np.ndarray): Input dataset nondependant variables.
@@ -105,7 +105,7 @@ def cross_validation(
 def grid_search_CV(
     model: object, X: np.array, y: np.array, cv_k: int, metric="rmse", seed=None
 ):
-    """Performs a grid search on parameter intervals defined in the model and uses 
+    """Performs a grid search on parameter intervals defined in the model and uses
     cross validation of evaluation fo these parameters.
 
     Args:

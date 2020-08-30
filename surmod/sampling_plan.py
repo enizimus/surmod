@@ -26,7 +26,7 @@ def rlh(n: int, k: int, edges: int = 0):
 
 
 def compute_dists(X: np.ndarray, p: int = 1) -> (np.ndarray, np.ndarray):
-    """ Computes distances between all pairs of points, keeps the unique 
+    """Computes distances between all pairs of points, keeps the unique
     ones and computes how many each of them repeat.
 
     Args:
@@ -35,7 +35,7 @@ def compute_dists(X: np.ndarray, p: int = 1) -> (np.ndarray, np.ndarray):
 
     Returns:
         unique_dist (np.ndarray): Unique distances between points
-        J (np.ndarray): Contains for every distance in unique_dist how 
+        J (np.ndarray): Contains for every distance in unique_dist how
         many times it repeats in the nonunique distances.
     """
 
@@ -51,7 +51,7 @@ def compute_dists(X: np.ndarray, p: int = 1) -> (np.ndarray, np.ndarray):
 
 
 def morris_mitchel_criterion(X1: np.ndarray, X2: np.ndarray, p: int = 1) -> (int):
-    """Implements the Morris Mitchel criterion based on the distances between 
+    """Implements the Morris Mitchel criterion based on the distances between
     the points in the sampling plans.
 
     Args:
@@ -60,7 +60,7 @@ def morris_mitchel_criterion(X1: np.ndarray, X2: np.ndarray, p: int = 1) -> (int
         p (int, optional): Degree of norm. Defaults to 1.
 
     Returns:
-        (int): 0 if sampling plans equal 
+        (int): 0 if sampling plans equal
                1 if X1 better
                2 if X2 better
     """
@@ -105,8 +105,8 @@ def morris_mitchel_criterion(X1: np.ndarray, X2: np.ndarray, p: int = 1) -> (int
 
 
 def morris_mitchel_phi_criterion(X: np.ndarray, q: int = 2, p: int = 1):
-    """Computes the Morris Mitchel Phi criterion where the space filling 
-    property of the latin hypercube is expressed through the Parameter 
+    """Computes the Morris Mitchel Phi criterion where the space filling
+    property of the latin hypercube is expressed through the Parameter
     Phi -> lower is better.
 
     Args:
@@ -122,7 +122,7 @@ def morris_mitchel_phi_criterion(X: np.ndarray, q: int = 2, p: int = 1):
 
 
 def sort_morris_mitchel(X3D: np.ndarray, p: int = 1) -> (np.ndarray):
-    """ Sorts the 3-dimensional array of sampling plans according
+    """Sorts the 3-dimensional array of sampling plans according
     to the Morris Mitchel criterion.
 
     Args:
@@ -174,8 +174,8 @@ def sort_morris_mitchel_phi(X3D: np.ndarray, p: int = 1, q: int = 2):
 
 
 def perturb_plan(X: np.ndarray, num_perturb: int = 1) -> (np.ndarray):
-    """Perturbs the input sampling plan by performing smallest possible 
-    alteration to latin hypercube without leaving the latin hypercube 
+    """Perturbs the input sampling plan by performing smallest possible
+    alteration to latin hypercube without leaving the latin hypercube
     space.
 
     Args:
@@ -203,7 +203,7 @@ def perturb_plan(X: np.ndarray, num_perturb: int = 1) -> (np.ndarray):
 
 
 def evolve_lh(X: np.ndarray, n_children: int, n_iter: int, q: int = 2) -> (np.ndarray):
-    """ Evolutionary process optimization of input sampling plan.
+    """Evolutionary process optimization of input sampling plan.
 
     Args:
         X (np.ndarray): Sampling plan.
@@ -250,7 +250,7 @@ def evolve_lh(X: np.ndarray, n_children: int, n_iter: int, q: int = 2) -> (np.nd
 def get_evolved_lh(
     n: int, k: int, n_children: int = 10, n_iter: int = 10, p: int = 1
 ) -> (np.ndarray):
-    """ Starts with random hypercubes for every q value in [1, 2, 5, 10, 20, 50, 100]
+    """Starts with random hypercubes for every q value in [1, 2, 5, 10, 20, 50, 100]
     and uses evolve_lh to compute optimal sampling plan for ever q. Then sort these
     by the Morris Mitchel criterion and return the best (first).
 
