@@ -175,16 +175,15 @@ class Kriging:
     def __init__(
         self: object,
         optim: object = None,
-        p: float = 2,
         verbose: bool = False,
     ):
         self.eps = 2.22e-16
         self.verbose = verbose
         self.optim = optim
-        self.p = p
 
         if self.verbose:
-            print("Initialized Kriging object with : ")
+            print("Initialized Kriging object with : \n")
+            self.__print_optim__()
 
     ##* User level functions (Public):
 
@@ -267,6 +266,19 @@ class Kriging:
 
     ## -------------------------------------------
     ##* Dev level functions (Private):
+
+    def __print_optim__(self):
+        
+        print("Optimization parameters : ")
+        print("  var_min : ", self.optim.var_min)
+        print("  var_max : ", self.optim.var_max)
+        print("  num_iter : ", self.optim.num_iter)
+        print("  num_pop : ", self.optim.num_pop)
+        print("  child_factor : ", self.optim.child_factor)
+        print("  mu : ", self.optim.mu)
+        print("  sigma : ", self.optim.sigma)
+        print("  gamma : ", self.optim.gamma)
+        
 
     def __construct_corr_mat(self):
 

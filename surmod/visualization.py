@@ -2,21 +2,28 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def plot_discrepancies(y: np.ndarray, y_hat: np.ndarray):
+def plot_discrepancies(
+    y: np.ndarray,
+    y_hat: np.ndarray,
+    x_label: str = "Samples",
+    y_label: str = "Objective function",
+    title: str = "Sorted objective function values",
+):
 
     I = np.argsort(y)
 
     x = np.arange(len(y))
     fig, ax = plt.subplots()
-    ax.plot(x, y[I], c="tab:blue", ls="-", marker="o", label="y")
-    ax.plot(x, y_hat[I], c="tab:orange", ls="-", marker="s", label="y_hat")
-    ax.grid()
-    ax.set_title("RMSE = {}".format(np.sqrt(np.mean((y - y_hat) ** 2))))
-    ax.set_xlabel("Samples")
-    ax.set_ylabel("Objective function value")
-    ax.set_xticks(x)
+    ax.plot(x, y[I], c="tab:blue", ls="-", marker="o", label="Numerical model", markersize=3)
+    ax.plot(x, y_hat[I], c="tab:orange", ls="-", marker="s", label="Surrogate model", markersize=3)
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.set_title(title)
+    #ax.set_xticks(x)
     plt.legend()
     plt.show()
+
+    return ax
 
 
 def variable_screeing_bar_plot(
@@ -103,6 +110,7 @@ def variable_screeing_scatter_plot(
             format="pdf",
         )
 
+    return ax
 
 def sorted_variables_bar_plot(
     ax: object,
