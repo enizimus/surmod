@@ -13,7 +13,7 @@ def plot_discrepancies(
     I = np.argsort(y)
 
     x = np.arange(len(y))
-    fig, ax = plt.subplots()
+    ax = plt.subplots()[1]
     ax.plot(x, y[I], c="tab:blue", ls="-", marker="o", label="Numerical model", markersize=3)
     ax.plot(x, y_hat[I], c="tab:orange", ls="-", marker="s", label="Surrogate model", markersize=3)
     ax.set_xlabel(x_label)
@@ -94,7 +94,7 @@ def variable_screeing_scatter_plot(
         None
     """
 
-    fig, ax = plt.subplots()
+    ax = plt.subplots()[1]
     for i in range(len(var)):
         ax.text(F_mean[i], F_std[i], var[i])
 

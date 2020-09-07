@@ -1,10 +1,10 @@
 import numpy as np
 from numpy.linalg import solve
+import torch
 import matplotlib.pyplot as plt
 from ypstruct import structure
-import genetic_algorithm
 
-#from . import genetic_algorithm
+from . import genetic_algorithm
 
 
 class RBF:
@@ -30,6 +30,7 @@ class RBF:
         self.basis = basis
         self.basis_fun, self.basis_num = self.__get_basis_function(basis)
         self.verbose = verbose
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         if self.verbose:
             print("Initialized RBF object with : ")
@@ -48,7 +49,7 @@ class RBF:
 
     def predict(self, X):
         Phi = self.__construct_gramm_mat_pred(X)
-        return np.dot(Phi, self.w)
+        return torch.mm(Phi, self.w)
 
     def get_params(self):
         return self.sigma_arr
@@ -92,28 +93,26 @@ class RBF:
 
     def __construct_gramm_mat(self):
 
-        n, k = self.X.shape
+        n = self.X.shape[0]
+        dX = torch.zeros(n, n)
 
-        dX = np.zeros((k,n,n), dtype=np.float32)
-        
-        for ix in range(k):
-            dX[ix,:,:] = self.X[:,ix].repeat(n).reshape(n,n)
-
-        dX = np.linalg.norm(dX - np.transpose(dX, (0,2,1)), axis=0)
+        for ix in range(n):
+            for iy in range(ix):
+                dX[ix, iy] = torch.norm(self.X[ix, :] - self.X[iy, :], 2)
+                dX[iy, ix] = dX[ix, iy]
 
         return self.basis_fun(dX)
 
     def __construct_gramm_mat_pred(self, X):
 
-        n, k = self.X.shape
-        l = X.shape[0]
+        n = self.X.shape[0]
+        k = X.shape[0]
 
-        dX = np.zeros((k,l,n), dtype=np.float32)
+        dX = torch.zeros(k, n)
 
         for ix in range(k):
-            dX[ix, :, :] = self.X[:,ix].repeat(l).reshape(n,l).T - X[:,ix].repeat(n).reshape(l,n)
-
-        dX = np.linalg.norm(dX, axis=0)
+            for iy in range(n):
+                dX[ix, iy] = torch.norm(X[ix, :] - self.X[iy, :], 2)
 
         return self.basis_fun(dX)
 
@@ -121,7 +120,7 @@ class RBF:
 
         Phi = self.__construct_gramm_mat()
 
-        self.w = np.linalg.solve(Phi, self.y)
+        self.w = torch.solve(self.y, Phi)
 
     def __basis_linear(self, r):
         return r
@@ -319,17 +318,3 @@ class Kriging:
 
     def __basis(self, x1, x2):
         return np.exp(-np.dot(self.theta, np.abs(x1 - x2) ** self.p))
-
-from surmod.util import train_test_split
-
-data = np.load("./sampling_n1000_exp.npy", allow_pickle=True)[()]
-X = data["X"]
-objectives = data["objectives"]
-y = objectives[0, 0, :]
-#X_train, X_test, y_train, y_test = train_test_split(X, y, p=0.6)
-
-rbf_linear = RBF(basis="linear")
-rbf_linear.fit(X, y)
-y_hat = rbf_linear.predict(X)
-
-print(y_hat[:10])
