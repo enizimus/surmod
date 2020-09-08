@@ -2,7 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def rand_orientation_mat(k: int, p: int, xi: int, seed: None) -> (np.ndarray, np.ndarray):
+def rand_orientation_mat(
+    k: int, p: int, xi: int, seed: None
+) -> (np.ndarray, np.ndarray):
     """Generates a random orientation matrix B*
 
     Arguments:
@@ -37,7 +39,9 @@ def rand_orientation_mat(k: int, p: int, xi: int, seed: None) -> (np.ndarray, np
     return Bs, Ps
 
 
-def sampling_matrix(k: int, p: int, xi: int, r: int, seed=None) -> (np.ndarray, np.ndarray):
+def sampling_matrix(
+    k: int, p: int, xi: int, r: int, seed=None
+) -> (np.ndarray, np.ndarray):
     """Generates a sampling matrix X consisting of r random
        orientation matrices B*
 
@@ -78,7 +82,7 @@ def calc_elem_effects(
     objectives: np.ndarray, P: np.ndarray, k: int, r: int
 ) -> (np.ndarray, np.ndarray):
     """Generates a sampling plan and scales it with the ranges
-    of the individual variables, then computes the elementary 
+    of the individual variables, then computes the elementary
     effects Matrix F and the mean and standard deviation of these
     values for each design variable.
 

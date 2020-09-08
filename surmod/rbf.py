@@ -5,11 +5,12 @@ from ypstruct import structure
 
 from . import genetic_algorithm
 
+
 class RBF:
-    """ Radial Basis Functions (RBF) Class : 
-     - Objects of this class implement a *fit()* function for fitting 
-     the RBF model to the data and the *predict()* function for running 
-     the predictions of the model on the input data. 
+    """Radial Basis Functions (RBF) Class :
+    - Objects of this class implement a *fit()* function for fitting
+    the RBF model to the data and the *predict()* function for running
+    the predictions of the model on the input data.
     """
 
     def __init__(
@@ -54,31 +55,66 @@ class RBF:
     def set_params(self, sigma):
         self.sigma = sigma
 
+    def save(self, path: str = "./rbf_model.npy"):
+
+        model = {
+            "sigma": self.sigma,
+            "sigma_int": self.sigma_int,
+            "basis": self.basis,
+            "n_sigma": self.n_sigma,
+            "w": self.w,
+            "X": self.X,
+        }
+
+        np.save(path, model, allow_pickle=True)
+
+    def load(self, path: str = "./rbf_model.npy"):
+
+        if path[-4:] != ".npy":
+            path += ".npy"
+
+        model = np.load(path, allow_pickle=True)[()]
+
+        self.X = model["X"]
+        self.w = model["w"]
+        self.sigma = model["sigma"]
+        self.sigma_int = model["sigma_int"]
+        self.basis = model["basis"]
+        self.n_sigma = model["n_sigma"]
+        self.sigma_arr = np.logspace(self.sigma_int[0], self.sigma_int[1], self.n_sigma)
+        self.basis_fun, self.basis_num = self.__get_basis_function(self.basis)
+
+        print("Loaded parameters from saved model :\n {}".format(path))
+
     ## -------------------------------------------
     ##* Dev level functions (Private):
 
     def __construct_gramm_mat(self):
 
-        n = self.X.shape[0]
-        dX = np.zeros((n, n))
+        n, k = self.X.shape
 
-        for ix in range(n):
-            for iy in range(ix):
-                dX[ix, iy] = np.linalg.norm(self.X[ix, :] - self.X[iy, :], 2)
-                dX[iy, ix] = dX[ix, iy]
+        dX = np.zeros((k, n, n), dtype=np.float32)
+
+        for ix in range(k):
+            dX[ix, :, :] = self.X[:, ix].repeat(n).reshape(n, n)
+
+        dX = np.linalg.norm(dX - np.transpose(dX, (0, 2, 1)), axis=0)
 
         return self.basis_fun(dX)
 
     def __construct_gramm_mat_pred(self, X):
 
-        n = self.X.shape[0]
-        k = X.shape[0]
+        n, k = self.X.shape
+        l = X.shape[0]
 
-        dX = np.zeros((k, n))
+        dX = np.zeros((k, l, n), dtype=np.float32)
 
         for ix in range(k):
-            for iy in range(n):
-                dX[ix, iy] = np.linalg.norm(X[ix, :] - self.X[iy, :], 2)
+            dX[ix, :, :] = self.X[:, ix].repeat(l).reshape(n, l).T - X[:, ix].repeat(
+                n
+            ).reshape(l, n)
+
+        dX = np.linalg.norm(dX, axis=0)
 
         return self.basis_fun(dX)
 
@@ -86,23 +122,7 @@ class RBF:
 
         Phi = self.__construct_gramm_mat()
 
-        if self.basis_num == 8 or self.basis_num == 9:
-
-            try:
-                L = np.linalg.cholesky(Phi)
-                self.w = np.linalg.solve(L, np.linalg.solve(L.conj().T, self.y))
-            except:
-                if self.verbose:
-                    print(
-                        "\n Phi matrix not positive definite for sigma = {}".format(
-                            self.sigma
-                        )
-                    )
-                    print(" Weights set to 0 ! ")
-                self.w = np.zeros((self.X.shape[0],))
-
-        else:
-            self.w = np.linalg.solve(Phi, self.y)
+        self.w = np.linalg.solve(Phi, self.y)
 
     def __basis_linear(self, r):
         return r
@@ -141,15 +161,17 @@ class RBF:
 
 class Kriging:
     def __init__(
-        self: object, optim, p: float = 2, verbose: bool = False,
+        self: object,
+        optim: object = None,
+        verbose: bool = False,
     ):
         self.eps = 2.22e-16
         self.verbose = verbose
         self.optim = optim
-        self.p = p
 
         if self.verbose:
-            print("Initialized Kriging object with : ")
+            print("Initialized Kriging object with : \n")
+            self.__print_optim__()
 
     ##* User level functions (Public):
 
@@ -165,8 +187,8 @@ class Kriging:
 
     def predict(self, X):
 
-        self.theta = 10 ** self.parameters[:self.n_feat]
-        self.p = self.parameters[self.n_feat:]
+        self.theta = 10 ** self.parameters[: self.n_feat]
+        self.p = self.parameters[self.n_feat :]
 
         I = np.ones(self.X.shape[0])
 
@@ -178,35 +200,104 @@ class Kriging:
 
         return y_hat
 
+    def save(self, path: str = "./kriging_model.npy"):
+
+        optim = {
+            "var_min": self.optim.var_min,
+            "var_max": self.optim.var_max,
+            "num_iter": self.optim.num_iter,
+            "num_pop": self.optim.num_pop,
+            "mu": self.optim.mu,
+            "sigma": self.optim.sigma,
+            "child_factor": self.optim.child_factor,
+            "gamma": self.optim.gamma,
+        }
+
+        model = {
+            "parameters": self.parameters,
+            "X": self.X,
+            "n_feat": self.n_feat,
+            "Psi": self.Psi,
+            "y": self.y,
+            "optim": optim,
+        }
+
+        np.save(path, model, allow_pickle=True)
+
+    def load(self, path: str = "./kriging_model.npy"):
+
+        if path[-4:] != ".npy":
+            path += ".npy"
+
+        model = np.load(path, allow_pickle=True)[()]
+        optim_dict = model["optim"]
+
+        optim = structure(
+            var_min=optim_dict["var_min"],
+            var_max=optim_dict["var_max"],
+            num_iter=optim_dict["num_iter"],
+            num_pop=optim_dict["num_pop"],
+            mu=optim_dict["mu"],
+            sigma=optim_dict["sigma"],
+            child_factor=optim_dict["child_factor"],
+            gamma=optim_dict["gamma"],
+        )
+
+        self.parameters = model["parameters"]
+        self.X = model["X"]
+        self.n_feat = model["n_feat"]
+        self.Psi = model["Psi"]
+        self.y = model["y"]
+        self.optim = optim
+
+        print("Loaded parameters from saved model :\n {}".format(path))
+
     ## -------------------------------------------
     ##* Dev level functions (Private):
 
+    def __print_optim__(self):
+
+        print("Optimization parameters : ")
+        print("  var_min : ", self.optim.var_min)
+        print("  var_max : ", self.optim.var_max)
+        print("  num_iter : ", self.optim.num_iter)
+        print("  num_pop : ", self.optim.num_pop)
+        print("  child_factor : ", self.optim.child_factor)
+        print("  mu : ", self.optim.mu)
+        print("  sigma : ", self.optim.sigma)
+        print("  gamma : ", self.optim.gamma)
+
     def __construct_corr_mat(self):
 
-        n = self.X.shape[0]
-        Psi = np.zeros((n, n))
+        n, k = self.X.shape
+        Psi = np.zeros((k, n, n), dtype=np.float32)
 
-        for ix in range(n):
-            for iy in range(ix):
-                Psi[ix, iy] = self.__basis(self.X[ix, :], self.X[iy, :])
+        for ind in range(k):
+            Psi[ind, :, :] = self.X[:, ind].repeat(n).reshape(n, n)
 
-        Psi = Psi + Psi.T + np.eye(n) + np.eye(n) * self.eps
+        Psi = np.abs(Psi - np.transpose(Psi, (0, 2, 1)))
+        Theta = self.theta.repeat(n ** 2).reshape(k, n, n)
+        P = self.p.repeat(n ** 2).reshape(k, n, n)
 
-        return Psi
+        return np.exp(-((Psi ** P) * Theta).sum(axis=0))
 
     def __construct_corr_mat_pred(self, X):
 
-        n = self.X.shape[0]
-        k = X.shape[0]
-        Psi = np.zeros((k, n))
+        n, k = self.X.shape
+        l = X.shape[0]
 
-        for ix in range(n):
-            for iy in range(k):
-                Psi[iy, ix] = self.__basis(self.X[ix, :], X[iy, :])
+        Psi = np.zeros((k, l, n), dtype=np.float32)
 
-        # Psi = Psi + Psi.T + np.eye(n) + np.eye(n) * self.eps
+        for ix in range(k):
+            Psi[ix, :, :] = np.abs(
+                self.X[:, ix].repeat(l).reshape(n, l).T
+                - X[:, ix].repeat(n).reshape(l, n)
+            )
 
-        return Psi
+        Theta = self.theta.repeat(n * l).reshape(k, l, n)
+        P = self.p.repeat(n * l).reshape(k, l, n)
+
+        return np.exp(-((Psi ** P) * Theta).sum(axis=0))
 
     def __estimate_sig_mu_ln(self, Psi):
 
@@ -223,13 +314,11 @@ class Kriging:
         return ln_like
 
     def __parameters_objective(self, parameters):
-        
-        self.theta = 10 ** parameters[:self.n_feat]
-        self.p = parameters[self.n_feat:]
+
+        self.theta = 10 ** parameters[: self.n_feat]
+        self.p = parameters[self.n_feat :]
 
         Psi = self.__construct_corr_mat()
         ln_like = self.__estimate_sig_mu_ln(Psi)
-        return ln_like, Psi
 
-    def __basis(self, x1, x2):
-        return np.exp(-np.dot(self.theta, np.abs(x1 - x2) ** self.p))
+        return ln_like, Psi

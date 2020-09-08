@@ -3,7 +3,7 @@ import sys
 from ypstruct import structure
 
 
-def generate_random_variables(var_min, var_max):
+def generate_random_variables(var_min: np.ndarray, var_max: np.ndarray):
 
     variables = np.random.uniform(size=(len(var_min),))
     variables = variables * (var_max - var_min) + var_min
@@ -22,7 +22,7 @@ def crossover(par_1, par_2, gamma: float = 0.1):
     return child_1, child_2
 
 
-def mutate(individual, mu, sigma):
+def mutate(individual: object, mu: float, sigma: float):
 
     mutated = individual.deepcopy()
     mask = np.random.rand(*individual.variables.shape) <= mu
@@ -33,7 +33,7 @@ def mutate(individual, mu, sigma):
     return mutated
 
 
-def check_bounds(individual, var_min, var_max):
+def check_bounds(individual: object, var_min: np.ndarray, var_max: np.ndarray):
 
     upper = var_max - individual.variables
     lower = individual.variables - var_min
@@ -47,7 +47,7 @@ def check_bounds(individual, var_min, var_max):
     return individual
 
 
-def set_optim_defaults(optim):
+def set_optim_defaults(optim: object):
 
     keys = optim.keys()
 
@@ -75,7 +75,7 @@ def set_optim_defaults(optim):
     return optim
 
 
-def ga(ofun, optim):
+def ga(ofun, optim: object, verbose: bool = True):
 
     optim = set_optim_defaults(optim)
 
@@ -127,6 +127,7 @@ def ga(ofun, optim):
         population = sorted(population, key=lambda x: x.cost)
         population = population[: optim.num_pop]
 
-        print("Iter {} : cost {} ".format(iter, best_individual.cost))
+        print(" >> Iter {} : cost = {} ".format(iter, best_individual.cost))
+        print(" >> Params : {} \n".format(best_individual.variables))
 
     return best_individual.variables
