@@ -93,12 +93,12 @@ class RBF:
 
         n, k = self.X.shape
 
-        dX = np.zeros((k,n,n), dtype=np.float32)
-        
-        for ix in range(k):
-            dX[ix,:,:] = self.X[:,ix].repeat(n).reshape(n,n)
+        dX = np.zeros((k, n, n), dtype=np.float32)
 
-        dX = np.linalg.norm(dX - np.transpose(dX, (0,2,1)), axis=0)
+        for ix in range(k):
+            dX[ix, :, :] = self.X[:, ix].repeat(n).reshape(n, n)
+
+        dX = np.linalg.norm(dX - np.transpose(dX, (0, 2, 1)), axis=0)
 
         return self.basis_fun(dX)
 
@@ -107,10 +107,12 @@ class RBF:
         n, k = self.X.shape
         l = X.shape[0]
 
-        dX = np.zeros((k,l,n), dtype=np.float32)
+        dX = np.zeros((k, l, n), dtype=np.float32)
 
         for ix in range(k):
-            dX[ix, :, :] = self.X[:,ix].repeat(l).reshape(n,l).T - X[:,ix].repeat(n).reshape(l,n)
+            dX[ix, :, :] = self.X[:, ix].repeat(l).reshape(n, l).T - X[:, ix].repeat(
+                n
+            ).reshape(l, n)
 
         dX = np.linalg.norm(dX, axis=0)
 
@@ -254,7 +256,7 @@ class Kriging:
     ##* Dev level functions (Private):
 
     def __print_optim__(self):
-        
+
         print("Optimization parameters : ")
         print("  var_min : ", self.optim.var_min)
         print("  var_max : ", self.optim.var_max)
@@ -268,31 +270,34 @@ class Kriging:
     def __construct_corr_mat(self):
 
         n, k = self.X.shape
-        Psi = np.zeros((k,n,n), dtype=np.float32)
-    
-        for ind in range(k):
-            Psi[ind,:,:] = self.X[:,ind].repeat(n).reshape(n,n)
-        
-        Psi = np.abs(Psi - np.transpose(Psi, (0,2,1)))
-        Theta = self.theta.repeat(n**2).reshape(k,n,n)
-        P = self.p.repeat(n**2).reshape(k,n,n)
+        Psi = np.zeros((k, n, n), dtype=np.float32)
 
-        return np.exp(-((Psi**P)*Theta).sum(axis=0))
+        for ind in range(k):
+            Psi[ind, :, :] = self.X[:, ind].repeat(n).reshape(n, n)
+
+        Psi = np.abs(Psi - np.transpose(Psi, (0, 2, 1)))
+        Theta = self.theta.repeat(n ** 2).reshape(k, n, n)
+        P = self.p.repeat(n ** 2).reshape(k, n, n)
+
+        return np.exp(-((Psi ** P) * Theta).sum(axis=0))
 
     def __construct_corr_mat_pred(self, X):
 
-        n, k = self.X.shape 
+        n, k = self.X.shape
         l = X.shape[0]
 
-        Psi = np.zeros((k,l,n), dtype=np.float32)
-    
-        for ix in range(k):
-            Psi[ix,:,:] = np.abs(self.X[:,ix].repeat(l).reshape(n,l).T - X[:,ix].repeat(n).reshape(l,n))
-        
-        Theta = self.theta.repeat(n*l).reshape(k,l,n)
-        P = self.p.repeat(n*l).reshape(k,l,n)
+        Psi = np.zeros((k, l, n), dtype=np.float32)
 
-        return np.exp(-((Psi**P)*Theta).sum(axis=0))
+        for ix in range(k):
+            Psi[ix, :, :] = np.abs(
+                self.X[:, ix].repeat(l).reshape(n, l).T
+                - X[:, ix].repeat(n).reshape(l, n)
+            )
+
+        Theta = self.theta.repeat(n * l).reshape(k, l, n)
+        P = self.p.repeat(n * l).reshape(k, l, n)
+
+        return np.exp(-((Psi ** P) * Theta).sum(axis=0))
 
     def __estimate_sig_mu_ln(self, Psi):
 

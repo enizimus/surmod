@@ -1,5 +1,7 @@
 import numpy as np
+
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 
 def plot_discrepancies(
@@ -14,12 +16,22 @@ def plot_discrepancies(
 
     x = np.arange(len(y))
     ax = plt.subplots()[1]
-    ax.plot(x, y[I], c="tab:blue", ls="-", marker="o", label="Numerical model", markersize=3)
-    ax.plot(x, y_hat[I], c="tab:orange", ls="-", marker="s", label="Surrogate model", markersize=3)
+    ax.plot(
+        x, y[I], c="tab:blue", ls="-", marker="o", label="Numerical model", markersize=3
+    )
+    ax.plot(
+        x,
+        y_hat[I],
+        c="tab:orange",
+        ls="-",
+        marker="s",
+        label="Surrogate model",
+        markersize=3,
+    )
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
     ax.set_title(title)
-    #ax.set_xticks(x)
+    # ax.set_xticks(x)
     plt.legend()
     plt.show()
 
@@ -75,6 +87,45 @@ def variable_screeing_bar_plot(
         )
 
 
+def variable_distplot(
+    X, y, var_names, a, b, n_bins, path="var_distplot.pdf", save_fig=False
+):
+
+    k = X.shape[1]
+
+    I = np.argsort(y)
+
+    X = X[I, :]
+    y = y[I]
+
+    in_space = (y > a) & (y < b)
+
+    X_in = X[in_space, :]
+
+    axs = plt.subplots(k, 1)[1]
+    axs[0].set_title(f"Objective range [{a}, {b}]")
+    for ix, ax in enumerate(axs):
+        sns.distplot(
+            X_in[:, ix],
+            bins=np.linspace(0, 1, n_bins),
+            ax=ax,
+            norm_hist=True,
+            kde_kws={"clip": [0, 1], "lw": 3.5, "ls": "--"},
+        )
+        ax.set_xlim([0, 1])
+        ax.set_ylabel(var_names[ix])
+
+    plt.tight_layout()
+    plt.show()
+
+    if save_fig:
+        plt.savefig(
+            path,
+            dpi=300,
+            format="pdf",
+        )
+
+
 def variable_screeing_scatter_plot(
     F_mean: np.ndarray,
     F_std: np.ndarray,
@@ -111,6 +162,7 @@ def variable_screeing_scatter_plot(
         )
 
     return ax
+
 
 def sorted_variables_bar_plot(
     ax: object,

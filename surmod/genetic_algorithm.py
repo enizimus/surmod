@@ -3,7 +3,7 @@ import sys
 from ypstruct import structure
 
 
-def generate_random_variables(var_min:np.ndarray, var_max:np.ndarray):
+def generate_random_variables(var_min: np.ndarray, var_max: np.ndarray):
 
     variables = np.random.uniform(size=(len(var_min),))
     variables = variables * (var_max - var_min) + var_min
@@ -33,7 +33,7 @@ def mutate(individual: object, mu: float, sigma: float):
     return mutated
 
 
-def check_bounds(individual: object, var_min:np.ndarray, var_max:np.ndarray):
+def check_bounds(individual: object, var_min: np.ndarray, var_max: np.ndarray):
 
     upper = var_max - individual.variables
     lower = individual.variables - var_min
@@ -75,7 +75,7 @@ def set_optim_defaults(optim: object):
     return optim
 
 
-def ga(ofun, optim: object, verbose: bool=True):
+def ga(ofun, optim: object, verbose: bool = True):
 
     optim = set_optim_defaults(optim)
 
@@ -129,6 +129,5 @@ def ga(ofun, optim: object, verbose: bool=True):
 
         print(" >> Iter {} : cost = {} ".format(iter, best_individual.cost))
         print(" >> Params : {} \n".format(best_individual.variables))
-
 
     return best_individual.variables
