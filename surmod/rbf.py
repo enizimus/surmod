@@ -2,9 +2,8 @@ import numpy as np
 from numpy.linalg import solve
 import matplotlib.pyplot as plt
 from ypstruct import structure
-import genetic_algorithm
 
-#from . import genetic_algorithm
+from . import genetic_algorithm
 
 
 class RBF:
@@ -265,34 +264,35 @@ class Kriging:
         print("  mu : ", self.optim.mu)
         print("  sigma : ", self.optim.sigma)
         print("  gamma : ", self.optim.gamma)
-        
 
     def __construct_corr_mat(self):
 
-        n = self.X.shape[0]
-        Psi = np.zeros((n, n))
+        n, k = self.X.shape
+        Psi = np.zeros((k,n,n), dtype=np.float32)
+    
+        for ind in range(k):
+            Psi[ind,:,:] = self.X[:,ind].repeat(n).reshape(n,n)
+        
+        Psi = np.abs(Psi - np.transpose(Psi, (0,2,1)))
+        Theta = self.theta.repeat(n**2).reshape(k,n,n)
+        P = self.p.repeat(n**2).reshape(k,n,n)
 
-        for ix in range(n):
-            for iy in range(ix):
-                Psi[ix, iy] = self.__basis(self.X[ix, :], self.X[iy, :])
-
-        Psi = Psi + Psi.T + np.eye(n) + np.eye(n) * self.eps
-
-        return Psi
+        return np.exp(-((Psi**P)*Theta).sum(axis=0))
 
     def __construct_corr_mat_pred(self, X):
 
-        n = self.X.shape[0]
-        k = X.shape[0]
-        Psi = np.zeros((k, n))
+        n, k = self.X.shape 
+        l = X.shape[0]
 
-        for ix in range(n):
-            for iy in range(k):
-                Psi[iy, ix] = self.__basis(self.X[ix, :], X[iy, :])
+        Psi = np.zeros((k,l,n), dtype=np.float32)
+    
+        for ix in range(k):
+            Psi[ix,:,:] = np.abs(self.X[:,ix].repeat(l).reshape(n,l).T - X[:,ix].repeat(n).reshape(l,n))
+        
+        Theta = self.theta.repeat(n*l).reshape(k,l,n)
+        P = self.p.repeat(n*l).reshape(k,l,n)
 
-        # Psi = Psi + Psi.T + np.eye(n) + np.eye(n) * self.eps
-
-        return Psi
+        return np.exp(-((Psi**P)*Theta).sum(axis=0))
 
     def __estimate_sig_mu_ln(self, Psi):
 
@@ -315,21 +315,5 @@ class Kriging:
 
         Psi = self.__construct_corr_mat()
         ln_like = self.__estimate_sig_mu_ln(Psi)
+
         return ln_like, Psi
-
-    def __basis(self, x1, x2):
-        return np.exp(-np.dot(self.theta, np.abs(x1 - x2) ** self.p))
-
-from surmod.util import train_test_split
-
-data = np.load("./sampling_n1000_exp.npy", allow_pickle=True)[()]
-X = data["X"]
-objectives = data["objectives"]
-y = objectives[0, 0, :]
-#X_train, X_test, y_train, y_test = train_test_split(X, y, p=0.6)
-
-rbf_linear = RBF(basis="linear")
-rbf_linear.fit(X, y)
-y_hat = rbf_linear.predict(X)
-
-print(y_hat[:10])
