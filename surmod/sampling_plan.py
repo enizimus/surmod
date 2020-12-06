@@ -1,8 +1,9 @@
+from asyncio.tasks import as_completed
 import numpy as np
 from scipy.spatial.distance import pdist
 
 
-def rlh(n: int, k: int, edges: int = 0):
+def rlh(n: int, k: int, edges: int = 0) -> np.ndarray:
     """Generate random latin hypercube with dimensions n x k
 
     Args:
@@ -246,6 +247,7 @@ def evolve_lh(X: np.ndarray, n_children: int, n_iter: int, q: int = 2) -> (np.nd
 
     return X_best
 
+import concurrent.futures
 
 def get_evolved_lh(
     n: int, k: int, n_children: int = 10, n_iter: int = 10, p: int = 1
@@ -264,18 +266,33 @@ def get_evolved_lh(
     Returns:
         np.ndarray: Returns optimal sampling plan.
     """
-    q_arr = np.array([1, 2, 5, 10, 20, 50, 100])  # as proposed in paper
+    q_arr:np.ndarray = np.array([1, 2, 5, 10, 20, 50, 100])  # as proposed in paper
 
-    X3D = np.zeros((len(q_arr), n, k))
-    X_start = rlh(n, k)
+    X3D:np.ndarray = np.zeros((len(q_arr), n, k))
+    X_start:np.ndarray = rlh(n, k)
 
-    for i in range(len(q_arr)):
-        X3D[i, :, :] = evolve_lh(X_start, n_children, n_iter, q_arr[i])
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        results = [executor.submit(evolve_lh, X_start, n_children, n_iter, q_arr[ix]) for ix in range(7)]
 
-    indices = sort_morris_mitchel(X3D, p)
+        ix = 0
+        for f in concurrent.futures.as_completed(results):    
+            X3D[ix,:,:] = f.result()
+            ix += 1
 
-    X_best = X3D[indices[0]]
+    #p = Pool(processes=7)
+    #X3D = p.map(lambda x: evolve_lh(X_start, n_children, n_iter, x), q_arr)
+
+    # for i in prange(len(q_arr)):
+    #     X3D[i, :, :] = evolve_lh(X_start, n_children, n_iter, q_arr[i])
+
+    indices:np.ndarray = sort_morris_mitchel(X3D, p)
+
+    X_best:np.ndarray = X3D[indices[0]]
 
     print("Best LH found for q = {}.".format(q_arr[indices[0]]))
 
     return X_best
+
+if __name__ == '__main__':
+    X = get_evolved_lh(n=6000, k=6, n_children=5, n_iter=5)
+    np.save('X_n100.npy', X)

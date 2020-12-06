@@ -3,7 +3,8 @@ from numpy.linalg import solve
 import matplotlib.pyplot as plt
 from ypstruct import structure
 
-from . import genetic_algorithm
+# from . import genetic_algorithm
+import genetic_algorithm
 
 
 class RBF:
@@ -161,13 +162,15 @@ class RBF:
 
 class Kriging:
     def __init__(
-        self: object,
-        optim: object = None,
-        verbose: bool = False,
+        self:    object,
+        optim:   object = None,
+        verbose: bool   = False,
+        infill:  bool   = False
     ):
         self.eps = 2.22e-16
         self.verbose = verbose
         self.optim = optim
+        self.infill = infill
 
         if self.verbose:
             print("Initialized Kriging object with : \n")
@@ -182,8 +185,18 @@ class Kriging:
 
         self.n_feat = X.shape[1]
 
-        self.parameters = genetic_algorithm.ga(self.__parameters_objective, self.optim)
-        self.Psi = self.__parameters_objective(self.parameters)[1]
+        if self.infill :
+            param_objective = lambda params: self.__infill_objective(params)
+        else:
+            param_objective = lambda params: self.__parameters_objective(params)
+
+        self.parameters = genetic_algorithm.ga(param_objective, self.optim)
+        self.Psi = param_objective(self.parameters)[1]
+
+        if self.infill:
+            return self.xopt
+        else:
+            return 0
 
     def predict(self, X):
 
@@ -313,6 +326,28 @@ class Kriging:
 
         return ln_like
 
+    def __estimate_sig_mu_ln_infill(self, Psi, psi):
+
+        n = self.X.shape[0]
+        I = np.ones(n)
+
+        mu = np.dot(I, solve(Psi, self.y)) / np.dot(I, solve(Psi, I))
+        m  = (I*mu + psi*(self.optim.goal - mu)).ravel()
+        C  = Psi - np.dot(psi, psi.T)
+
+        # U = np.linalg.cholesky(C)
+        # LnDetC = 
+        # LnDetC = 2*np.sum(np.log(np.abs(np.diag(U))))
+
+        sigsq = np.dot((self.y - m), solve(C, self.y - m)) / n
+
+        ln_like = -(-0.5 * n * np.log(sigsq) - 0.5 * np.log(np.linalg.det(C)))
+
+        # if ln_like == -np.inf:
+        #     ln_like = np.inf
+
+        return -ln_like
+
     def __parameters_objective(self, parameters):
 
         self.theta = 10 ** parameters[: self.n_feat]
@@ -320,5 +355,18 @@ class Kriging:
 
         Psi = self.__construct_corr_mat()
         ln_like = self.__estimate_sig_mu_ln(Psi)
+
+        return ln_like, Psi
+
+    def __infill_objective(self, parameters):
+
+        self.theta = 10 ** parameters[: self.n_feat]
+        self.p = parameters[self.n_feat:self.n_feat*2]
+        self.xopt = parameters[self.n_feat*2:]
+
+        Psi = self.__construct_corr_mat()
+        psi = self.__construct_corr_mat_pred(self.xopt[:,None])
+
+        ln_like = self.__estimate_sig_mu_ln_infill(Psi, psi)
 
         return ln_like, Psi
