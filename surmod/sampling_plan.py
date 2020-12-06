@@ -1,9 +1,9 @@
+from typing import Tuple
 import numpy as np
 from scipy.spatial.distance import pdist
-import line_profiler
 
-##@profile
-def rlh(n: int, k: int, edges: int = 0):
+
+def rlh(n: int, k: int, edges: int = 0) -> np.ndarray:
     """Generate random latin hypercube with dimensions n x k
 
     Args:
@@ -25,8 +25,8 @@ def rlh(n: int, k: int, edges: int = 0):
 
     return X
 
-#@profile
-def compute_dists(X: np.ndarray, p: int = 1) -> (np.ndarray, np.ndarray):
+
+def compute_dists(X: np.ndarray, p: int = 1) -> Tuple(np.ndarray, np.ndarray):
     """Computes distances between all pairs of points, keeps the unique
     ones and computes how many each of them repeat.
 
@@ -41,21 +41,16 @@ def compute_dists(X: np.ndarray, p: int = 1) -> (np.ndarray, np.ndarray):
     """
 
     dist = pdist(X, "minkowski", p=p)
+
     unique_dist = np.unique(dist)
-
-    # n_dist = len(dist)
-    # n_udist = len(unique_dist)
-
-    # J = np.count_nonzero(dist.repeat(n_udist).reshape(n_dist, n_udist) == unique_dist.repeat(n_dist).reshape(n_udist, n_dist).T, axis=0)
-
     J = np.zeros_like(unique_dist)
 
     for i, d in enumerate(unique_dist):
-       J[i] = np.count_nonzero(dist == d)
+        J[i] = np.count_nonzero(dist == d)
 
     return J, unique_dist
 
-#@profile
+
 def morris_mitchel_criterion(X1: np.ndarray, X2: np.ndarray, p: int = 1) -> (int):
     """Implements the Morris Mitchel criterion based on the distances between
     the points in the sampling plans.
@@ -109,7 +104,7 @@ def morris_mitchel_criterion(X1: np.ndarray, X2: np.ndarray, p: int = 1) -> (int
 
     return cond
 
-##@profile
+
 def morris_mitchel_phi_criterion(X: np.ndarray, q: int = 2, p: int = 1):
     """Computes the Morris Mitchel Phi criterion where the space filling
     property of the latin hypercube is expressed through the Parameter
@@ -126,7 +121,7 @@ def morris_mitchel_phi_criterion(X: np.ndarray, q: int = 2, p: int = 1):
     J, d = compute_dists(X, p)
     return np.dot(J, d ** (-q)) ** (1 / q)
 
-##@profile
+
 def sort_morris_mitchel(X3D: np.ndarray, p: int = 1) -> (np.ndarray):
     """Sorts the 3-dimensional array of sampling plans according
     to the Morris Mitchel criterion.
@@ -160,7 +155,7 @@ def sort_morris_mitchel(X3D: np.ndarray, p: int = 1) -> (np.ndarray):
 
     return indices
 
-##@profile
+
 def sort_morris_mitchel_phi(X3D: np.ndarray, p: int = 1, q: int = 2):
     """Sorts the 3-dimensional array of sampling plans according
     to the Morris Mitchel Phi criterion.
@@ -207,7 +202,7 @@ def perturb_plan(X: np.ndarray, num_perturb: int = 1) -> (np.ndarray):
 
     return X
 
-##@profile
+
 def evolve_lh(X: np.ndarray, n_children: int, n_iter: int, q: int = 2) -> (np.ndarray):
     """Evolutionary process optimization of input sampling plan.
 
@@ -254,7 +249,6 @@ def evolve_lh(X: np.ndarray, n_children: int, n_iter: int, q: int = 2) -> (np.nd
 
 import concurrent.futures
 
-#@profile
 def get_evolved_lh(
     n: int, k: int, n_children: int = 10, n_iter: int = 10, p: int = 1
 ) -> (np.ndarray):
@@ -272,33 +266,29 @@ def get_evolved_lh(
     Returns:
         np.ndarray: Returns optimal sampling plan.
     """
-    q_arr = np.array([1, 2, 5, 10, 20, 50, 100])  # as proposed in paper
+    q_arr:np.ndarray = np.array([1, 2, 5, 10, 20, 50, 100])  # as proposed in paper
 
-    X3D = np.zeros((len(q_arr), n, k))
-    X_start = rlh(n, k)
-
-    # for i in range(len(q_arr)):
-    #     X3D[i, :, :] = evolve_lh(X_start, n_children, n_iter, q_arr[i])
+    X3D:np.ndarray = np.zeros((len(q_arr), n, k))
+    X_start:np.ndarray = rlh(n, k)
 
     with concurrent.futures.ProcessPoolExecutor() as executor:
-        results = [executor.submit(evolve_lh, X_start, n_children, n_iter, q) for q in q_arr]
+        results = [executor.submit(evolve_lh, X_start, n_children, n_iter, q_arr[ix]) for ix in range(7)]
 
-        for ind, r in enumerate(results):
-            X3D[ind, :, :] = r.result()
+        ix = 0
+        for f in concurrent.futures.as_completed(results):    
+            X3D[ix,:,:] = f.result()
+            ix += 1
 
-    indices = sort_morris_mitchel(X3D, p)
+    #p = Pool(processes=7)
+    #X3D = p.map(lambda x: evolve_lh(X_start, n_children, n_iter, x), q_arr)
 
-    X_best = X3D[indices[0]]
+    # for i in prange(len(q_arr)):
+    #     X3D[i, :, :] = evolve_lh(X_start, n_children, n_iter, q_arr[i])
+
+    indices:np.ndarray = sort_morris_mitchel(X3D, p)
+
+    X_best:np.ndarray = X3D[indices[0]]
 
     print("Best LH found for q = {}.".format(q_arr[indices[0]]))
 
     return X_best
-
-import datetime
-
-if __name__ == '__main__':
-
-    print(datetime.datetime.now())
-    X = get_evolved_lh(2000, 6, 5, 5)
-
-    print(datetime.datetime.now())
