@@ -1,10 +1,12 @@
 import numpy as np
 from numpy.linalg import solve
-import matplotlib.pyplot as plt
+from stochopy import optimize
 from ypstruct import structure
 
-# from . import genetic_algorithm
-import genetic_algorithm
+from stochopy.optimize import minimize
+
+from . import genetic_algorithm
+# import genetic_algorithm
 
 
 class RBF:
@@ -189,8 +191,14 @@ class Kriging:
             param_objective = lambda params: self.__infill_objective(params)
         else:
             param_objective = lambda params: self.__parameters_objective(params)
+        
+        bounds = np.row_stack((np.zeros((1,2*self.n_feat)),np.ones((1,2*self.n_feat)))).T
+        x0 = np.random.rand(self.n_feat*2,)
 
-        self.parameters = genetic_algorithm.ga(param_objective, self.optim)
+        optimizer = minimize(param_objective, method='cmaes', x0=x0, bounds=bounds)
+        self.parameters = optimizer.x*(self.optim.varmax-self.optim.varmin) + self.optim.varmin
+        
+        # self.parameters = genetic_algorithm.ga(param_objective, self.optim)
         self.Psi = param_objective(self.parameters)[1]
 
         if self.infill:
@@ -349,6 +357,8 @@ class Kriging:
         return -ln_like
 
     def __parameters_objective(self, parameters):
+
+        parameters = parameters*(self.optim.var_max-self.optim.var_min) + self.optim.var_min
 
         self.theta = 10 ** parameters[: self.n_feat]
         self.p = parameters[self.n_feat :]

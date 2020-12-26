@@ -26,7 +26,7 @@ def rlh(n: int, k: int, edges: int = 0) -> np.ndarray:
     return X
 
 
-def compute_dists(X: np.ndarray, p: int = 1) -> Tuple(np.ndarray, np.ndarray):
+def compute_dists(X: np.ndarray, p: int = 1) -> Tuple[np.ndarray, np.ndarray]:
     """Computes distances between all pairs of points, keeps the unique
     ones and computes how many each of them repeat.
 
