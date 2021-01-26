@@ -1,4 +1,5 @@
 from . import genetic_algorithm
+from . import nes
 from . import prelim_sampling
 from . import sampling_plan
 from . import rbf

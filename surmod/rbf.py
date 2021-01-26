@@ -1,12 +1,30 @@
 import numpy as np
 from numpy.linalg import solve
-from stochopy import optimize
 from ypstruct import structure
 
-from stochopy.optimize import minimize
+from pymoo.model.problem import Problem
+from pymoo.algorithms.so_genetic_algorithm import GA
+from pymoo.algorithms.so_pso import PSO
+from pymoo.algorithms.so_de import DE
+from pymoo.optimize import minimize
 
-from . import genetic_algorithm
-# import genetic_algorithm
+class KrigOptim(Problem):
+
+    def __init__(self, f, optim):
+        n_var = len(optim.var_min) 
+        xl = optim.var_min
+        xu = optim.var_max 
+        self.fun = f
+        super().__init__(n_var=n_var, n_obj=1, n_constr=0, xl=xl, xu=xu)
+
+    def _evaluate(self, x, out, *args, **kwargs):
+        
+        y = np.zeros(x.shape[0])
+
+        for ind in range(x.shape[0]):
+            y[ind] = self.fun(x[ind][None,:])[0]
+
+        out["F"] = y
 
 
 class RBF:
@@ -173,6 +191,15 @@ class Kriging:
         self.verbose = verbose
         self.optim = optim
         self.infill = infill
+        self.n_feat = len(self.optim.var_min)//2
+
+        if self.infill :
+            self.param_objective = lambda params: self.__infill_objective(params)
+        else:
+            self.param_objective = lambda params: self.__parameters_objective(params)
+
+        self.krigopt = KrigOptim(self.param_objective, optim)
+        self.algorithm = GA(pop_size=optim.num_pop, eliminate_duplicates=True) #DE(pop_size=optim.num_pop) #PSO(pop_size=optim.num_pop) #
 
         if self.verbose:
             print("Initialized Kriging object with : \n")
@@ -185,21 +212,10 @@ class Kriging:
         self.X = X
         self.y = y
 
-        self.n_feat = X.shape[1]
+        res = minimize(self.krigopt, self.algorithm, ('n_gen', self.optim.num_iter), verbose=True)
 
-        if self.infill :
-            param_objective = lambda params: self.__infill_objective(params)
-        else:
-            param_objective = lambda params: self.__parameters_objective(params)
-        
-        bounds = np.row_stack((np.zeros((1,2*self.n_feat)),np.ones((1,2*self.n_feat)))).T
-        x0 = np.random.rand(self.n_feat*2,)
-
-        optimizer = minimize(param_objective, method='cmaes', x0=x0, bounds=bounds)
-        self.parameters = optimizer.x*(self.optim.varmax-self.optim.varmin) + self.optim.varmin
-        
-        # self.parameters = genetic_algorithm.ga(param_objective, self.optim)
-        self.Psi = param_objective(self.parameters)[1]
+        self.parameters = res.X[None,:]        
+        self.Psi = self.param_objective(self.parameters)[1]
 
         if self.infill:
             return self.xopt
@@ -208,8 +224,8 @@ class Kriging:
 
     def predict(self, X):
 
-        self.theta = 10 ** self.parameters[: self.n_feat]
-        self.p = self.parameters[self.n_feat :]
+        self.theta = self.parameters[0][: self.n_feat]
+        self.p = self.parameters[0][self.n_feat :]
 
         I = np.ones(self.X.shape[0])
 
@@ -327,7 +343,11 @@ class Kriging:
         mu = np.dot(I, solve(Psi, self.y)) / np.dot(I, solve(Psi, I))
         sigsq = np.dot((self.y - I * mu), solve(Psi, self.y - I * mu)) / n
 
-        ln_like = -(-0.5 * n * np.log(sigsq) - 0.5 * np.log(np.linalg.det(Psi)))
+        sigsq_log = 0 if sigsq == 0 else np.log(sigsq)
+        psi_det = np.linalg.det(Psi)
+        psidet_log = 0 if psi_det == 0 else np.log(psi_det)
+
+        ln_like = -(-0.5 * n * sigsq_log - 0.5 * psidet_log)
 
         if ln_like == -np.inf:
             ln_like = np.inf
@@ -358,10 +378,10 @@ class Kriging:
 
     def __parameters_objective(self, parameters):
 
-        parameters = parameters*(self.optim.var_max-self.optim.var_min) + self.optim.var_min
+        #parameters = parameters*(self.optim.var_max-self.optim.var_min) + self.optim.var_min
 
-        self.theta = 10 ** parameters[: self.n_feat]
-        self.p = parameters[self.n_feat :]
+        self.theta = parameters[0][: self.n_feat]
+        self.p = parameters[0][self.n_feat :]
 
         Psi = self.__construct_corr_mat()
         ln_like = self.__estimate_sig_mu_ln(Psi)
@@ -380,3 +400,32 @@ class Kriging:
         ln_like = self.__estimate_sig_mu_ln_infill(Psi, psi)
 
         return ln_like, Psi
+
+# import matplotlib.pyplot as plt
+
+# X = np.linspace(0,2*np.pi,5)[:,None]
+# y = np.sin(X)
+
+# varmin = np.array([0.01, 1])
+# varmax = np.array([10, 3])
+# numiter = 5
+# numpop = 50
+# mu = 0.1
+# sigma = 0.2
+# child_factor = 2
+# gamma = 0.1
+
+# optim = structure(var_min=varmin, var_max=varmax, num_iter=numiter, num_pop=numpop, mu=mu, sigma=sigma, child_factor=2,  gamma=gamma)
+# krigger = Kriging(optim, verbose=True)
+# krigger.fit(X, y.ravel())
+
+# X_test = np.linspace(0,2*np.pi,50)[:,None] #np.array([[np.pi/4+np.pi/10, np.pi+np.pi/11]])
+
+# y_hat = krigger.predict(X_test)
+
+# print(krigger.theta)
+
+# fig, ax = plt.subplots()
+# ax.scatter(X, y)
+# ax.plot(X_test, y_hat)
+# plt.show()
