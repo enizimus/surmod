@@ -224,7 +224,7 @@ class Kriging:
 
     def predict(self, X):
 
-        self.theta = self.parameters[0][: self.n_feat]
+        self.theta = 10**self.parameters[0][: self.n_feat]
         self.p = self.parameters[0][self.n_feat :]
 
         I = np.ones(self.X.shape[0])
@@ -380,7 +380,7 @@ class Kriging:
 
         #parameters = parameters*(self.optim.var_max-self.optim.var_min) + self.optim.var_min
 
-        self.theta = parameters[0][: self.n_feat]
+        self.theta = 10**parameters[0][: self.n_feat]
         self.p = parameters[0][self.n_feat :]
 
         Psi = self.__construct_corr_mat()
