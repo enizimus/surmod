@@ -114,12 +114,12 @@ class RBF:
 
         n, k = self.X.shape
 
-        dX = np.zeros((k, n, n), dtype=np.float32)
+        dX = np.zeros((k, n, n), dtype=np.float64)
 
         for ix in range(k):
             dX[ix, :, :] = self.X[:, ix].repeat(n).reshape(n, n)
 
-        dX = np.linalg.norm(dX - np.transpose(dX, (0, 2, 1)), axis=0)
+        dX = np.linalg.norm(dX - np.transpose(dX, (0, 2, 1)), ord=2, axis=0)
 
         return self.basis_fun(dX)
 
@@ -128,22 +128,22 @@ class RBF:
         n, k = self.X.shape
         l = X.shape[0]
 
-        dX = np.zeros((k, l, n), dtype=np.float32)
+        dX = np.zeros((k, l, n), dtype=np.float64)
 
         for ix in range(k):
             dX[ix, :, :] = self.X[:, ix].repeat(l).reshape(n, l).T - X[:, ix].repeat(
                 n
             ).reshape(l, n)
 
-        dX = np.linalg.norm(dX, axis=0)
+        dX = np.linalg.norm(dX, ord=2, axis=0)
 
         return self.basis_fun(dX)
 
     def __estimate_weights(self):
 
-        Phi = self.__construct_gramm_mat()
+        self.Phi = self.__construct_gramm_mat()
 
-        self.w = np.linalg.solve(Phi, self.y)
+        self.w = np.linalg.solve(self.Phi, self.y)
 
     def __basis_linear(self, r):
         return r
@@ -212,7 +212,7 @@ class Kriging:
         self.X = X
         self.y = y
 
-        res = minimize(self.krigopt, self.algorithm, ('n_gen', self.optim.num_iter), verbose=True)
+        res = minimize(self.krigopt, self.algorithm, ('n_gen', self.optim.num_iter), verbose=self.verbose)
 
         self.parameters = res.X[None,:]        
         self.Psi = self.param_objective(self.parameters)[1]
@@ -307,7 +307,7 @@ class Kriging:
     def __construct_corr_mat(self):
 
         n, k = self.X.shape
-        Psi = np.zeros((k, n, n), dtype=np.float32)
+        Psi = np.zeros((k, n, n), dtype=np.float64)
 
         for ind in range(k):
             Psi[ind, :, :] = self.X[:, ind].repeat(n).reshape(n, n)
@@ -323,7 +323,7 @@ class Kriging:
         n, k = self.X.shape
         l = X.shape[0]
 
-        Psi = np.zeros((k, l, n), dtype=np.float32)
+        Psi = np.zeros((k, l, n), dtype=np.float64)
 
         for ix in range(k):
             Psi[ix, :, :] = np.abs(
