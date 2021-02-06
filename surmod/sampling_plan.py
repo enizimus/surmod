@@ -1,8 +1,13 @@
+from typing import Tuple
 import numpy as np
-from scipy.spatial.distance import pdist
+import torch
+import line_profiler
+from torch._C import dtype
+# from scipy.spatial.distance import pdist
 
+dev = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
-def rlh(n: int, k: int, edges: int = 0):
+def rlh(n: int, k: int, edges: int = 0) -> torch.Tensor:
     """Generate random latin hypercube with dimensions n x k
 
     Args:
@@ -11,11 +16,12 @@ def rlh(n: int, k: int, edges: int = 0):
         edges (int, optional): Affects the scaling of the entries. Defaults to 0.
 
     Returns:
-        X (n x k np.ndarray): Random latin hypercube
+        X (n x k torch.Tensor): Random latin hypercube
     """
-    X = np.zeros((n, k))
+    X:torch.Tensor = torch.zeros(n, k).to(dev)
+
     for i in range(k):
-        X[:, i] = np.random.permutation(n) + 1
+        X[:, i] = torch.randperm(n) + 1
 
     if edges == 1:
         X = (X - 1) / (n - 1)
@@ -25,38 +31,39 @@ def rlh(n: int, k: int, edges: int = 0):
     return X
 
 
-def compute_dists(X: np.ndarray, p: int = 1) -> (np.ndarray, np.ndarray):
+def compute_dists(X: torch.Tensor, p: int = 1) -> Tuple[torch.Tensor, torch.Tensor]:
     """Computes distances between all pairs of points, keeps the unique
     ones and computes how many each of them repeat.
 
     Args:
-        X (np.ndarray): Sampling plan
+        X (torch.Tensor): Sampling plan
         p (int, optional): Degree of norm. Defaults to 1.
 
     Returns:
-        unique_dist (np.ndarray): Unique distances between points
-        J (np.ndarray): Contains for every distance in unique_dist how
+        unique_dist (torch.Tensor): Unique distances between points
+        J (torch.Tensor): Contains for every distance in unique_dist how
         many times it repeats in the nonunique distances.
     """
 
-    dist = pdist(X, "minkowski", p=p)
+    dist = torch.nn.functional.pdist(X, p=2)
 
-    unique_dist = np.unique(dist)
-    J = np.zeros_like(unique_dist)
+    unique_dist = torch.unique(dist)
+    J = torch.zeros_like(unique_dist)
 
     for i, d in enumerate(unique_dist):
-        J[i] = np.count_nonzero(dist == d)
+        I = dist == d
+        J[i] = torch.sum(I)
 
     return J, unique_dist
 
 
-def morris_mitchel_criterion(X1: np.ndarray, X2: np.ndarray, p: int = 1) -> (int):
+def morris_mitchel_criterion(X1: torch.Tensor, X2: torch.Tensor, p: int = 1) -> (int):
     """Implements the Morris Mitchel criterion based on the distances between
     the points in the sampling plans.
 
     Args:
-        X1 (np.ndarray): Sampling plan 1
-        X1 (np.ndarray): Sampling plan 2
+        X1 (torch.Tensor): Sampling plan 1
+        X1 (torch.Tensor): Sampling plan 2
         p (int, optional): Degree of norm. Defaults to 1.
 
     Returns:
@@ -66,18 +73,18 @@ def morris_mitchel_criterion(X1: np.ndarray, X2: np.ndarray, p: int = 1) -> (int
     """
     cond = 0
 
-    I1 = np.argsort(X1[:, 0])
-    I2 = np.argsort(X2[:, 0])
+    I1 = torch.argsort(X1[:, 0])
+    I2 = torch.argsort(X2[:, 0])
 
-    if not np.array_equal(X1[I1, :], X2[I2, :]):
+    if not torch.equal(X1[I1, :], X2[I2, :]):
 
         J1, d1 = compute_dists(X1, p)
         J2, d2 = compute_dists(X2, p)
 
         m = min(len(J1), len(J2))
 
-        Jd1 = np.zeros((m,))
-        Jd2 = np.zeros((m,))
+        Jd1 = torch.zeros(m)
+        Jd2 = torch.zeros(m)
 
         if m % 2 == 0:
             f1 = m // 2
@@ -94,7 +101,7 @@ def morris_mitchel_criterion(X1: np.ndarray, X2: np.ndarray, p: int = 1) -> (int
 
         c = (Jd1 > Jd2) + 2 * (Jd1 < Jd2)
 
-        if not np.sum(c) == 0:
+        if not torch.sum(c) == 0:
             i = 0
             while c[i] == 0:
                 i += 1
@@ -104,13 +111,13 @@ def morris_mitchel_criterion(X1: np.ndarray, X2: np.ndarray, p: int = 1) -> (int
     return cond
 
 
-def morris_mitchel_phi_criterion(X: np.ndarray, q: int = 2, p: int = 1):
+def morris_mitchel_phi_criterion(X: torch.Tensor, q: int = 2, p: int = 1):
     """Computes the Morris Mitchel Phi criterion where the space filling
     property of the latin hypercube is expressed through the Parameter
     Phi -> lower is better.
 
     Args:
-        X (np.ndarray): Sampling plan
+        X (torch.Tensor): Sampling plan
         q (int, optional): Phi criterion parameter. Defaults to 2.
         p (int, optional): Degree of norm. Defaults to 1.
 
@@ -118,22 +125,22 @@ def morris_mitchel_phi_criterion(X: np.ndarray, q: int = 2, p: int = 1):
         [float]: phi value for input sampling plan.
     """
     J, d = compute_dists(X, p)
-    return np.dot(J, d ** (-q)) ** (1 / q)
+    return (torch.dot(J, d ** (-q)) ** (1 / q)).item()
 
 
-def sort_morris_mitchel(X3D: np.ndarray, p: int = 1) -> (np.ndarray):
+def sort_morris_mitchel(X3D: torch.Tensor, p: int = 1) -> (torch.Tensor):
     """Sorts the 3-dimensional array of sampling plans according
     to the Morris Mitchel criterion.
 
     Args:
-        X3D (np.ndarray): 3-dimensional array of 2D sampling plans
+        X3D (torch.Tensor): 3-dimensional array of 2D sampling plans
         p (int, optional): Degree of norm. Defaults to 1.
 
     Returns:
-        (np.ndarray): Indices of sorted 3D array.
+        (torch.Tensor): Indices of sorted 3D array.
     """
     nplans = X3D.shape[0]
-    indices = np.arange(nplans)
+    indices = torch.arange(nplans)
 
     is_swapping = True
 
@@ -155,35 +162,35 @@ def sort_morris_mitchel(X3D: np.ndarray, p: int = 1) -> (np.ndarray):
     return indices
 
 
-def sort_morris_mitchel_phi(X3D: np.ndarray, p: int = 1, q: int = 2):
+def sort_morris_mitchel_phi(X3D: torch.Tensor, p: int = 1, q: int = 2):
     """Sorts the 3-dimensional array of sampling plans according
     to the Morris Mitchel Phi criterion.
 
     Args:
-        X3D (np.ndarray): 3-dimensional array of 2D sampling plans
+        X3D (torch.Tensor): 3-dimensional array of 2D sampling plans
         p (int, optional): Degree of norm. Defaults to 1.
         q (int, optional): Phi criterion parameter. Defaults to 2.
 
     Returns:
-        (np.ndarray): Indices of sorted 3D array.
+        (torch.Tensor): Indices of sorted 3D array.
     """
-    Phi = np.array([morris_mitchel_phi_criterion(X, p, q) for X in X3D])
-    indices = np.argsort(Phi)
+    Phi = torch.tensor([morris_mitchel_phi_criterion(X, p, q) for X in X3D], dtype=torch.float32)
+    indices = torch.argsort(Phi)
 
     return indices
 
 
-def perturb_plan(X: np.ndarray, num_perturb: int = 1) -> (np.ndarray):
+def perturb_plan(X: torch.Tensor, num_perturb: int = 1) -> (torch.Tensor):
     """Perturbs the input sampling plan by performing smallest possible
     alteration to latin hypercube without leaving the latin hypercube
     space.
 
     Args:
-        X (np.ndarray): Sampling plan
+        X (torch.Tensor): Sampling plan
         num_perturb (int, optional): Number of perturbations to perform. Defaults to 1.
 
     Returns:
-        np.ndarray: Perturbed sampling plan
+        torch.Tensor: Perturbed sampling plan
     """
     n = np.arange(X.shape[0])
     k = np.arange(X.shape[1])
@@ -202,17 +209,17 @@ def perturb_plan(X: np.ndarray, num_perturb: int = 1) -> (np.ndarray):
     return X
 
 
-def evolve_lh(X: np.ndarray, n_children: int, n_iter: int, q: int = 2) -> (np.ndarray):
+def evolve_lh(X: torch.Tensor, n_children: int, n_iter: int, q: int = 2) -> (torch.Tensor):
     """Evolutionary process optimization of input sampling plan.
 
     Args:
-        X (np.ndarray): Sampling plan.
+        X (torch.Tensor): Sampling plan.
         n_children (int): Number of offspring each iteration.
         n_iter (int): Number of iterations to perform.
         q (int, optional): Phi criterion parameter. Defaults to 2.
 
     Returns:
-        (np.ndarray): Optimized latin hypercube
+        (torch.Tensor): Optimized latin hypercube
     """
     n = X.shape[0]
 
@@ -233,7 +240,7 @@ def evolve_lh(X: np.ndarray, n_children: int, n_iter: int, q: int = 2) -> (np.nd
 
         for _ in range(n_children):
 
-            X_child = perturb_plan(X_best.copy(), mutations)
+            X_child = perturb_plan(X_best.clone().detach(), mutations)
             phi_child = morris_mitchel_phi_criterion(X_child, q)
 
             if phi_child < phi_improved:
@@ -246,10 +253,9 @@ def evolve_lh(X: np.ndarray, n_children: int, n_iter: int, q: int = 2) -> (np.nd
 
     return X_best
 
-
 def get_evolved_lh(
     n: int, k: int, n_children: int = 10, n_iter: int = 10, p: int = 1
-) -> (np.ndarray):
+) -> (torch.Tensor):
     """Starts with random hypercubes for every q value in [1, 2, 5, 10, 20, 50, 100]
     and uses evolve_lh to compute optimal sampling plan for ever q. Then sort these
     by the Morris Mitchel criterion and return the best (first).
@@ -262,19 +268,27 @@ def get_evolved_lh(
         p (int, optional): Degree of norm. Defaults to 1.
 
     Returns:
-        np.ndarray: Returns optimal sampling plan.
+        torch.Tensor: Returns optimal sampling plan.
     """
-    q_arr = np.array([1, 2, 5, 10, 20, 50, 100])  # as proposed in paper
+    q_arr:torch.Tensor = torch.tensor([1, 2, 5, 10, 20, 50, 100]).to(dev)  # as proposed in paper
 
-    X3D = np.zeros((len(q_arr), n, k))
-    X_start = rlh(n, k)
+    X3D:torch.Tensor = torch.zeros(len(q_arr), n, k, dtype=torch.float32).to(dev)
+    X_start:torch.Tensor = rlh(n, k)
 
-    for i in range(len(q_arr)):
-        X3D[i, :, :] = evolve_lh(X_start, n_children, n_iter, q_arr[i])
+    for ix in range(7):
+        X3D[ix,:,:] = evolve_lh(X_start, n_children, n_iter, q_arr[ix])
 
-    indices = sort_morris_mitchel(X3D, p)
+    # with concurrent.futures.ProcessPoolExecutor() as executor:
+    #     results = [executor.submit(evolve_lh, X_start, n_children, n_iter, q_arr[ix]) for ix in range(7)]
 
-    X_best = X3D[indices[0]]
+    #     ix = 0
+    #     for f in concurrent.futures.as_completed(results):    
+    #         X3D[ix,:,:] = f.result()
+    #         ix += 1
+
+    indices:torch.Tensor = sort_morris_mitchel(X3D, p)
+
+    X_best:torch.Tensor = X3D[indices[0]]
 
     print("Best LH found for q = {}.".format(q_arr[indices[0]]))
 

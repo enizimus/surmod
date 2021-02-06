@@ -1,9 +1,30 @@
 import numpy as np
 from numpy.linalg import solve
-import matplotlib.pyplot as plt
 from ypstruct import structure
 
-from . import genetic_algorithm
+from pymoo.model.problem import Problem
+from pymoo.algorithms.so_genetic_algorithm import GA
+from pymoo.algorithms.so_pso import PSO
+from pymoo.algorithms.so_de import DE
+from pymoo.optimize import minimize
+
+class KrigOptim(Problem):
+
+    def __init__(self, f, optim):
+        n_var = len(optim.var_min) 
+        xl = optim.var_min
+        xu = optim.var_max 
+        self.fun = f
+        super().__init__(n_var=n_var, n_obj=1, n_constr=0, xl=xl, xu=xu)
+
+    def _evaluate(self, x, out, *args, **kwargs):
+        
+        y = np.zeros(x.shape[0])
+
+        for ind in range(x.shape[0]):
+            y[ind] = self.fun(x[ind][None,:])[0]
+
+        out["F"] = y
 
 
 class RBF:
@@ -93,12 +114,12 @@ class RBF:
 
         n, k = self.X.shape
 
-        dX = np.zeros((k, n, n), dtype=np.float32)
+        dX = np.zeros((k, n, n), dtype=np.float64)
 
         for ix in range(k):
             dX[ix, :, :] = self.X[:, ix].repeat(n).reshape(n, n)
 
-        dX = np.linalg.norm(dX - np.transpose(dX, (0, 2, 1)), axis=0)
+        dX = np.linalg.norm(dX - np.transpose(dX, (0, 2, 1)), ord=2, axis=0)
 
         return self.basis_fun(dX)
 
@@ -107,22 +128,22 @@ class RBF:
         n, k = self.X.shape
         l = X.shape[0]
 
-        dX = np.zeros((k, l, n), dtype=np.float32)
+        dX = np.zeros((k, l, n), dtype=np.float64)
 
         for ix in range(k):
             dX[ix, :, :] = self.X[:, ix].repeat(l).reshape(n, l).T - X[:, ix].repeat(
                 n
             ).reshape(l, n)
 
-        dX = np.linalg.norm(dX, axis=0)
+        dX = np.linalg.norm(dX, ord=2, axis=0)
 
         return self.basis_fun(dX)
 
     def __estimate_weights(self):
 
-        Phi = self.__construct_gramm_mat()
+        self.Phi = self.__construct_gramm_mat()
 
-        self.w = np.linalg.solve(Phi, self.y)
+        self.w = np.linalg.solve(self.Phi, self.y)
 
     def __basis_linear(self, r):
         return r
@@ -161,13 +182,24 @@ class RBF:
 
 class Kriging:
     def __init__(
-        self: object,
-        optim: object = None,
-        verbose: bool = False,
+        self:    object,
+        optim:   object = None,
+        verbose: bool   = False,
+        infill:  bool   = False
     ):
         self.eps = 2.22e-16
         self.verbose = verbose
         self.optim = optim
+        self.infill = infill
+        self.n_feat = len(self.optim.var_min)//2
+
+        if self.infill :
+            self.param_objective = lambda params: self.__infill_objective(params)
+        else:
+            self.param_objective = lambda params: self.__parameters_objective(params)
+
+        self.krigopt = KrigOptim(self.param_objective, optim)
+        self.algorithm = GA(pop_size=optim.num_pop, eliminate_duplicates=True) #DE(pop_size=optim.num_pop) #PSO(pop_size=optim.num_pop) #
 
         if self.verbose:
             print("Initialized Kriging object with : \n")
@@ -180,15 +212,20 @@ class Kriging:
         self.X = X
         self.y = y
 
-        self.n_feat = X.shape[1]
+        res = minimize(self.krigopt, self.algorithm, ('n_gen', self.optim.num_iter), verbose=self.verbose)
 
-        self.parameters = genetic_algorithm.ga(self.__parameters_objective, self.optim)
-        self.Psi = self.__parameters_objective(self.parameters)[1]
+        self.parameters = res.X[None,:]        
+        self.Psi = self.param_objective(self.parameters)[1]
+
+        if self.infill:
+            return self.xopt
+        else:
+            return 0
 
     def predict(self, X):
 
-        self.theta = 10 ** self.parameters[: self.n_feat]
-        self.p = self.parameters[self.n_feat :]
+        self.theta = self.parameters[0][: self.n_feat]
+        self.p = self.parameters[0][self.n_feat :]
 
         I = np.ones(self.X.shape[0])
 
@@ -270,7 +307,7 @@ class Kriging:
     def __construct_corr_mat(self):
 
         n, k = self.X.shape
-        Psi = np.zeros((k, n, n), dtype=np.float32)
+        Psi = np.zeros((k, n, n), dtype=np.float64)
 
         for ind in range(k):
             Psi[ind, :, :] = self.X[:, ind].repeat(n).reshape(n, n)
@@ -286,7 +323,7 @@ class Kriging:
         n, k = self.X.shape
         l = X.shape[0]
 
-        Psi = np.zeros((k, l, n), dtype=np.float32)
+        Psi = np.zeros((k, l, n), dtype=np.float64)
 
         for ix in range(k):
             Psi[ix, :, :] = np.abs(
@@ -306,19 +343,89 @@ class Kriging:
         mu = np.dot(I, solve(Psi, self.y)) / np.dot(I, solve(Psi, I))
         sigsq = np.dot((self.y - I * mu), solve(Psi, self.y - I * mu)) / n
 
-        ln_like = -(-0.5 * n * np.log(sigsq) - 0.5 * np.log(np.linalg.det(Psi)))
+        sigsq_log = 0 if sigsq == 0 else np.log(sigsq)
+        psi_det = np.linalg.det(Psi)
+        psidet_log = 0 if psi_det == 0 else np.log(psi_det)
+
+        ln_like = -(-0.5 * n * sigsq_log - 0.5 * psidet_log)
 
         if ln_like == -np.inf:
             ln_like = np.inf
 
         return ln_like
 
+    def __estimate_sig_mu_ln_infill(self, Psi, psi):
+
+        n = self.X.shape[0]
+        I = np.ones(n)
+
+        mu = np.dot(I, solve(Psi, self.y)) / np.dot(I, solve(Psi, I))
+        m  = (I*mu + psi*(self.optim.goal - mu)).ravel()
+        C  = Psi - np.dot(psi, psi.T)
+
+        # U = np.linalg.cholesky(C)
+        # LnDetC = 
+        # LnDetC = 2*np.sum(np.log(np.abs(np.diag(U))))
+
+        sigsq = np.dot((self.y - m), solve(C, self.y - m)) / n
+
+        ln_like = -(-0.5 * n * np.log(sigsq) - 0.5 * np.log(np.linalg.det(C)))
+
+        # if ln_like == -np.inf:
+        #     ln_like = np.inf
+
+        return -ln_like
+
     def __parameters_objective(self, parameters):
 
-        self.theta = 10 ** parameters[: self.n_feat]
-        self.p = parameters[self.n_feat :]
+        #parameters = parameters*(self.optim.var_max-self.optim.var_min) + self.optim.var_min
+
+        self.theta = parameters[0][: self.n_feat]
+        self.p = parameters[0][self.n_feat :]
 
         Psi = self.__construct_corr_mat()
         ln_like = self.__estimate_sig_mu_ln(Psi)
 
         return ln_like, Psi
+
+    def __infill_objective(self, parameters):
+
+        self.theta = 10 ** parameters[: self.n_feat]
+        self.p = parameters[self.n_feat:self.n_feat*2]
+        self.xopt = parameters[self.n_feat*2:]
+
+        Psi = self.__construct_corr_mat()
+        psi = self.__construct_corr_mat_pred(self.xopt[:,None])
+
+        ln_like = self.__estimate_sig_mu_ln_infill(Psi, psi)
+
+        return ln_like, Psi
+
+# import matplotlib.pyplot as plt
+
+# X = np.linspace(0,2*np.pi,5)[:,None]
+# y = np.sin(X)
+
+# varmin = np.array([0.01, 1])
+# varmax = np.array([10, 3])
+# numiter = 5
+# numpop = 50
+# mu = 0.1
+# sigma = 0.2
+# child_factor = 2
+# gamma = 0.1
+
+# optim = structure(var_min=varmin, var_max=varmax, num_iter=numiter, num_pop=numpop, mu=mu, sigma=sigma, child_factor=2,  gamma=gamma)
+# krigger = Kriging(optim, verbose=True)
+# krigger.fit(X, y.ravel())
+
+# X_test = np.linspace(0,2*np.pi,50)[:,None] #np.array([[np.pi/4+np.pi/10, np.pi+np.pi/11]])
+
+# y_hat = krigger.predict(X_test)
+
+# print(krigger.theta)
+
+# fig, ax = plt.subplots()
+# ax.scatter(X, y)
+# ax.plot(X_test, y_hat)
+# plt.show()

@@ -2,4 +2,5 @@ surmod/__pycache__/
 vscode/
 .vscode/
 dist/
+surmod.egg-info/
 MANIFEST
