@@ -1,7 +1,6 @@
 from typing import Tuple
 import numpy as np
 import torch
-import line_profiler
 from torch._C import dtype
 # from scipy.spatial.distance import pdist
 

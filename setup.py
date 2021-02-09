@@ -12,7 +12,7 @@ setup(
     url="https://github.com/enizimus/surmod",
     download_url="https://github.com/enizimus/surmod/archive/v0.1.1-beta.tar.gz",
     keywords=["surogate", "models", "sampling plan", "screening"],
-    install_requires=["numpy", "scipy", "matplotlib", "ypstruct"],
+    install_requires=["numpy", "scipy", "matplotlib", "ypstruct", "torch"],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Science/Research",
