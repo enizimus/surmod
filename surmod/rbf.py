@@ -187,20 +187,21 @@ class Kriging:
         verbose: bool   = False,
         infill:  bool   = False
     ):
-        self.eps = 2.22e-16
+        self.eps = 2.40e-16
         self.verbose = verbose
         self.optim = optim
         self.infill = infill
         self.n_feat = len(self.optim.var_min)//2
 
         if self.infill :
+            print('Infill mode selected !')
             self.param_objective = lambda params: self.__infill_objective(params)
         else:
             self.param_objective = lambda params: self.__parameters_objective(params)
 
         self.krigopt = KrigOptim(self.param_objective, optim)
-        self.algorithm = GA(pop_size=optim.num_pop, eliminate_duplicates=True) #DE(pop_size=optim.num_pop) #PSO(pop_size=optim.num_pop) #
-
+        self.algorithm = self.__get_optim_algo__()
+        
         if self.verbose:
             print("Initialized Kriging object with : \n")
             self.__print_optim__()
@@ -220,7 +221,7 @@ class Kriging:
         if self.infill:
             return self.xopt
         else:
-            return 0
+            return None
 
     def predict(self, X):
 
@@ -248,6 +249,7 @@ class Kriging:
             "sigma": self.optim.sigma,
             "child_factor": self.optim.child_factor,
             "gamma": self.optim.gamma,
+            "algorithm": self.optim.algorithm,
         }
 
         model = {
@@ -278,6 +280,7 @@ class Kriging:
             sigma=optim_dict["sigma"],
             child_factor=optim_dict["child_factor"],
             gamma=optim_dict["gamma"],
+            algorithm=optim_dict["algorithm"]
         )
 
         self.parameters = model["parameters"]
@@ -291,6 +294,20 @@ class Kriging:
 
     ## -------------------------------------------
     ##* Dev level functions (Private):
+
+    def __get_optim_algo__(self):
+
+        if self.optim.algorithm.upper() == 'GA':
+            algo = GA(pop_size=self.optim.num_pop, eliminate_duplicates=True) 
+        elif self.optim.algorithm.upper() == 'DE':
+            algo = DE(pop_size=self.optim.num_pop) 
+        elif self.optim.algorithm.upper() == 'PSO':    
+            algo = PSO(pop_size=self.optim.num_pop) 
+        else :
+            print('Not supported algorithm selected !')
+            algo = []
+
+        return algo
 
     def __print_optim__(self):
 
@@ -363,18 +380,18 @@ class Kriging:
         m  = (I*mu + psi*(self.optim.goal - mu)).ravel()
         C  = Psi - np.dot(psi, psi.T)
 
-        # U = np.linalg.cholesky(C)
-        # LnDetC = 
-        # LnDetC = 2*np.sum(np.log(np.abs(np.diag(U))))
-
         sigsq = np.dot((self.y - m), solve(C, self.y - m)) / n
 
-        ln_like = -(-0.5 * n * np.log(sigsq) - 0.5 * np.log(np.linalg.det(C)))
+        sigsq_log = 0 if sigsq == 0 else np.log(sigsq)
+        C_det = np.linalg.det(C)
+        Cdet_log = 0 if C_det == 0 else np.log(C_det)
 
-        # if ln_like == -np.inf:
-        #     ln_like = np.inf
+        ln_like = -(-0.5 * n * sigsq_log - 0.5 * Cdet_log)
 
-        return -ln_like
+        if ln_like == -np.inf:
+            ln_like = np.inf
+
+        return ln_like
 
     def __parameters_objective(self, parameters):
 
@@ -390,9 +407,9 @@ class Kriging:
 
     def __infill_objective(self, parameters):
 
-        self.theta = 10 ** parameters[: self.n_feat]
-        self.p = parameters[self.n_feat:self.n_feat*2]
-        self.xopt = parameters[self.n_feat*2:]
+        self.theta = 10 ** parameters[0][: self.n_feat]
+        self.p = parameters[0][self.n_feat:self.n_feat*2]
+        self.xopt = parameters[0][self.n_feat*2:]
 
         Psi = self.__construct_corr_mat()
         psi = self.__construct_corr_mat_pred(self.xopt[:,None])
