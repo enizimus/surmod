@@ -26,8 +26,9 @@ mu = 0.1
 sigma = 0.2
 child_factor = 10
 gamma = 0.1
+algo = 'cmaes'
 
-optim = structure(var_min=varmin, var_max=varmax, num_iter=numiter, num_pop=numpop, mu=mu, sigma=sigma, child_factor=2,  gamma=gamma)
+optim = structure(algorithm=algo, maxeval=1000, var_min=varmin, var_max=varmax, num_iter=numiter, num_pop=numpop, mu=mu, sigma=sigma, child_factor=2,  gamma=gamma)
 
 krigger = surmod.rbf.Kriging(optim=optim, verbose=True)
 

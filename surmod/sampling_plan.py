@@ -2,9 +2,22 @@ from typing import Tuple
 import numpy as np
 import torch
 from torch._C import dtype
+from torch.functional import Tensor
 # from scipy.spatial.distance import pdist
 
 dev = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+
+def get_regular_grid(n: int, k: int) -> torch.Tensor:
+
+    x = np.linspace(0,1,n).repeat(k).reshape(n,k)
+    mg = np.meshgrid(*x.T)
+
+    X = np.zeros((n**k,1))
+
+    for xi in mg:
+        X = np.column_stack((X, xi.flatten()))
+
+    return X[:,1:]
 
 def rlh(n: int, k: int, edges: int = 0) -> torch.Tensor:
     """Generate random latin hypercube with dimensions n x k

@@ -6,6 +6,7 @@ from pymoo.model.problem import Problem
 from pymoo.algorithms.so_genetic_algorithm import GA
 from pymoo.algorithms.so_pso import PSO
 from pymoo.algorithms.so_de import DE
+from pymoo.algorithms.so_cmaes import CMAES
 from pymoo.optimize import minimize
 
 class KrigOptim(Problem):
@@ -185,13 +186,15 @@ class Kriging:
         self:    object,
         optim:   object = None,
         verbose: bool   = False,
-        infill:  bool   = False
+        infill:  bool   = False,
+        seed: int = -1
     ):
         self.eps = 2.40e-16
         self.verbose = verbose
         self.optim = optim
         self.infill = infill
         self.n_feat = len(self.optim.var_min)//2
+        self.seed = seed
 
         if self.infill :
             print('Infill mode selected !')
@@ -200,7 +203,11 @@ class Kriging:
             self.param_objective = lambda params: self.__parameters_objective(params)
 
         self.krigopt = KrigOptim(self.param_objective, optim)
-        self.algorithm = self.__get_optim_algo__()
+
+        if self.seed == -1:
+            self.algorithm = self.__get_optim_algo__()
+        else : 
+            self.algorithm = self.__get_optim_algo_seedfix__()
         
         if self.verbose:
             print("Initialized Kriging object with : \n")
@@ -295,6 +302,26 @@ class Kriging:
     ## -------------------------------------------
     ##* Dev level functions (Private):
 
+    def __get_optim_algo_seedfix__(self):
+
+        if self.optim.algorithm.upper() == 'GA':
+            algo = GA(pop_size=self.optim.num_pop, eliminate_duplicates=True, 
+            seed=self.seed) 
+        elif self.optim.algorithm.upper() == 'DE':
+            algo = DE(pop_size=self.optim.num_pop, 
+            seed=self.seed) 
+        elif self.optim.algorithm.upper() == 'PSO':    
+            algo = PSO(pop_size=self.optim.num_pop, 
+            seed=self.seed)
+        elif self.optim.algorithm.upper() == 'CMAES':
+            algo = CMAES(maxfevals=self.optim.maxeval, 
+            seed=self.seed)
+        else :
+            print('Not supported algorithm selected !')
+            algo = []
+
+        return algo
+
     def __get_optim_algo__(self):
 
         if self.optim.algorithm.upper() == 'GA':
@@ -302,7 +329,9 @@ class Kriging:
         elif self.optim.algorithm.upper() == 'DE':
             algo = DE(pop_size=self.optim.num_pop) 
         elif self.optim.algorithm.upper() == 'PSO':    
-            algo = PSO(pop_size=self.optim.num_pop) 
+            algo = PSO(pop_size=self.optim.num_pop)
+        elif self.optim.algorithm.upper() == 'CMAES':
+            algo = CMAES(maxfevals=self.optim.maxeval)
         else :
             print('Not supported algorithm selected !')
             algo = []
@@ -417,32 +446,3 @@ class Kriging:
         ln_like = self.__estimate_sig_mu_ln_infill(Psi, psi)
 
         return ln_like, Psi
-
-# import matplotlib.pyplot as plt
-
-# X = np.linspace(0,2*np.pi,5)[:,None]
-# y = np.sin(X)
-
-# varmin = np.array([0.01, 1])
-# varmax = np.array([10, 3])
-# numiter = 5
-# numpop = 50
-# mu = 0.1
-# sigma = 0.2
-# child_factor = 2
-# gamma = 0.1
-
-# optim = structure(var_min=varmin, var_max=varmax, num_iter=numiter, num_pop=numpop, mu=mu, sigma=sigma, child_factor=2,  gamma=gamma)
-# krigger = Kriging(optim, verbose=True)
-# krigger.fit(X, y.ravel())
-
-# X_test = np.linspace(0,2*np.pi,50)[:,None] #np.array([[np.pi/4+np.pi/10, np.pi+np.pi/11]])
-
-# y_hat = krigger.predict(X_test)
-
-# print(krigger.theta)
-
-# fig, ax = plt.subplots()
-# ax.scatter(X, y)
-# ax.plot(X_test, y_hat)
-# plt.show()
