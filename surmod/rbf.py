@@ -193,7 +193,7 @@ class Kriging:
         self.verbose = verbose
         self.optim = optim
         self.infill = infill
-        self.n_feat = len(self.optim.var_min)//2
+        self.n_feat = optim.n_feat
         self.seed = seed
 
         if self.infill :
@@ -441,7 +441,7 @@ class Kriging:
         self.xopt = parameters[0][self.n_feat*2:]
 
         Psi = self.__construct_corr_mat()
-        psi = self.__construct_corr_mat_pred(self.xopt[:,None])
+        psi = self.__construct_corr_mat_pred(self.xopt[None,:])
 
         ln_like = self.__estimate_sig_mu_ln_infill(Psi, psi)
 
