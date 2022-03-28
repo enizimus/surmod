@@ -2,3 +2,6 @@ numpy
 scipy
 matplotlib
 ypstruct
+torch
+pymoo==0.4.2
+pydoe
